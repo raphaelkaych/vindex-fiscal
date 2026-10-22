@@ -1,0 +1,30 @@
+{
+  "info": {
+    "name": "Vindex Fiscal v1 — exemplos sem credenciais",
+    "description": "Configure baseUrl, token (segredo local), companyId, invoiceId, installmentId e boletoId. Nada é executado automaticamente. Valores/IDs são placeholders; não representam consulta real.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+  "variable": [
+    {"key":"baseUrl","value":"http://127.0.0.1:8000/api/v1"},
+    {"key":"token","value":"","type":"string"},
+    {"key":"companyId","value":""},
+    {"key":"invoiceId","value":""},
+    {"key":"installmentId","value":""},
+    {"key":"boletoId","value":""}
+  ],
+  "item": [
+    {"name":"Listar empresas autorizadas","request":{"method":"GET","url":"{{baseUrl}}/empresas/"}},
+    {"name":"Listar notas da empresa","request":{"method":"GET","url":"{{baseUrl}}/notas/?company={{companyId}}&ordering=-issued_on&page_size=25"}},
+    {"name":"Detalhar nota","request":{"method":"GET","url":"{{baseUrl}}/notas/{{invoiceId}}/"}},
+    {"name":"Baixar XML privado","request":{"method":"GET","url":"{{baseUrl}}/notas/{{invoiceId}}/xml/"}},
+    {"name":"Importar XML NF-e autorizado — escolher arquivo","request":{"method":"POST","url":"{{baseUrl}}/notas/importar/","body":{"mode":"formdata","formdata":[{"key":"file","type":"file","src":[]}]}}},
+    {"name":"Listar parcelas previstas","request":{"method":"GET","url":"{{baseUrl}}/parcelas/?company={{companyId}}"}},
+    {"name":"Marcar conferência — não confirma pagamento","request":{"method":"POST","url":"{{baseUrl}}/parcelas/{{installmentId}}/conferir/","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"checked\":true}","options":{"raw":{"language":"json"}}}}},
+    {"name":"Listar boletos locais","request":{"method":"GET","url":"{{baseUrl}}/boletos/?company={{companyId}}"}},
+    {"name":"Importar PDF autorizado — escolher arquivo","request":{"method":"POST","url":"{{baseUrl}}/boletos/importar/","body":{"mode":"formdata","formdata":[{"key":"company","value":"{{companyId}}","type":"text"},{"key":"file","type":"file","src":[]}]}}},
+    {"name":"Associar boleto a parcela — revisão explícita","request":{"method":"POST","url":"{{baseUrl}}/boletos/{{boletoId}}/associar/","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"installment\":{{installmentId}},\"review_reason\":\"SUBSTITUA por motivo real de revisão quando necessário; este texto é um placeholder.\"}","options":{"raw":{"language":"json"}}}}},
+    {"name":"Consultar somente metadados dos certificados","request":{"method":"GET","url":"{{baseUrl}}/certificados/"}},
+    {"name":"Esquema OpenAPI público","request":{"method":"GET","url":"{{baseUrl}}/schema/","auth":{"type":"noauth"}}}
+  ]
+}

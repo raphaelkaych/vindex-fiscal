@@ -1,0 +1,17 @@
+# Schemas oficiais NF-e
+
+Arquivos públicos do Portal Nacional da NF-e, obtidos por HTTPS em 21/10/2026. Não contêm documentos fiscais, certificados ou informações de clientes.
+
+- `distDFeInt_v1.01.xsd`, `retDistDFeInt_v1.01.xsd`, `tiposDistDFe_v1.01.xsd`, `resNFe_v1.01.xsd` e `resEvento_v1.01.xsd`: [Distribuição de DF-e, pacote 1.04, publicado em 03/07/2026](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=IzuP2y0G6hk%3D).
+- `xmldsig-core-schema_v1.01.xsd`: [NF-e/NFC-e, pacote 010e_v1.02, publicado em 10/07/2026](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=c14derMqb2Y%3D). Completa a dependência de assinatura que não acompanha o ZIP de distribuição.
+- `envEvento_v1.00.xsd`, `retEnvEvento_v1.00.xsd`, `leiauteEvento_v1.00.xsd` e `tiposBasico_v1.03.xsd`: pasta `Evento` do [pacote 010d_v1.03, CNPJ alfanumérico, publicado em 10/07/2026](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=%2BpBOYTXBtbk%3D). São os envelopes atuais, com CNPJ e chave de acesso alfanuméricos. SHA-256 do ZIP oficial: `45ceefe4dfbbfec93958283b650a2f1e1734784f4770d070b9907754de081d9b`.
+- `e210210_v1.00.xsd`: detalhe específico da Ciência, do [pacote de manifestação do destinatário 1.01, publicado em 30/05/2014](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=Q7x6aqhBAy4%3D), ainda relacionado na lista oficial. Esse detalhe contém somente a descrição e a versão do evento, sem campos de CNPJ ou chave. O envelope genérico utiliza `xs:any` no detalhe, portanto o detalhe da Ciência deve ser validado separadamente com esse arquivo.
+- `envConfRecebto_v1.00.xsd`, `retEnvConfRecebto_v1.00.xsd`, `leiauteConfRecebto_v1.00.xsd` e `legacy/tiposBasico_v1.03.xsd`: envelopes antigos, preservados somente para compatibilidade. Os novos envios devem utilizar os envelopes genéricos de 2026 acima.
+
+Os bytes foram preservados, com duas exceções nos arquivos legados: `retEnvConfRecebto_v1.00.xsd` contém no ZIP oficial uma anotação em Windows-1252 apesar de declarar UTF-8 e foi recodificado para UTF-8; em `leiauteConfRecebto_v1.00.xsd`, somente o caminho de inclusão dos tipos antigos foi ajustado para `legacy/tiposBasico_v1.03.xsd`, evitando colisão com os tipos atualizados. Nenhum elemento, tipo ou regra foi alterado. Os nove schemas de entrada, retorno, resumo e detalhe foram compilados com `lxml.etree.XMLSchema`, com todas as dependências locais. Um evento inteiramente sintético com CNPJ e chave alfanuméricos passou pelos schemas atuais de envelope e detalhe, pela conferência do digest e pela verificação criptográfica da assinatura no SOAP final. Não houve envio fiscal nesse teste.
+
+O número da Nota Técnica, a versão do pacote ZIP e a versão do XML são diferentes. A NT 2014.002 v1.40 utiliza `distDFeInt` com versão `1.01`. Os eventos de manifestação utilizam versão XML `1.00`.
+
+O schema de assinatura fixa RSA-SHA1, SHA1 e canonicalização C14N 1.0. Esses algoritmos pertencem ao protocolo oficial XMLDSig e não alteram as exigências de validação TLS do transporte. Uma validação XSD não comprova a autenticidade de uma assinatura nem o registro de um evento na SEFAZ.
+
+Fontes técnicas: [NT 2014.002 v1.40](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=uWO2d%2FgTuWg%3D), [NT 2020.001 v1.60](https://www.nfe.fazenda.gov.br/Portal/exibirArquivo.aspx?conteudo=%2BWTd7iuD21s%3D) e [relação oficial de schemas](https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w%3D).

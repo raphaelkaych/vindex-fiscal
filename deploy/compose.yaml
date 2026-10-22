@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: vindex
+      POSTGRES_USER: vindex
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vindex -d vindex"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+  web:
+    build: {context: .., dockerfile: deploy/Dockerfile}
+    restart: unless-stopped
+    env_file: .env.production
+    depends_on:
+      db: {condition: service_healthy}
+    volumes: ["static:/app/staticfiles", "runtime:/app/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/saude/',timeout=5)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+  capture:
+    build: {context: .., dockerfile: deploy/Dockerfile}
+    restart: unless-stopped
+    env_file: .env.production
+    command: ["python", "manage.py", "capturar_sefaz", "--interval", "15"]
+    depends_on:
+      db: {condition: service_healthy}
+    volumes: ["runtime:/app/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "verificar_captura"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+  proxy:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on: [web]
+    # Somente localhost: um proxy HTTPS confiável da infraestrutura publica o serviço.
+    ports: ["127.0.0.1:8080:80"]
+    volumes: ["./nginx.conf:/etc/nginx/conf.d/default.conf:ro", "static:/static:ro"]
+volumes:
+  database:
+  static:
+  runtime:

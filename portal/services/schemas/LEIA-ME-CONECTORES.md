@@ -1,0 +1,13 @@
+# Schemas dos novos conectores
+
+Arquivos públicos obtidos de fontes oficiais em 21/10/2026. Os manifests SHA256.json permitem verificar os XSDs locais; nenhum arquivo contém dados de empresa ou certificado.
+
+- `cte/`: [distribuição PL_CTeDistDFe_100](https://www.cte.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=l6I2ehbBicE%3D) e [pacote CT-e NT 2026.004 v1.00, republicado em 16/10/2026](https://www.cte.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=zeylq8Ib5E0%3D). O importador usa procCTe_v4.00 para modelo 57 padrão e procEventoCTe_v4.00 para eventos. Outros XSDs do pacote não significam importadores implementados para todos os modelos.
+- `nfse/`: [pacote nacional v1.01 de 09/02/2026](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/nfse-esquemas_xsd-v1-01-20260209.zip), anunciado na [documentação atual](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual). `adn-contribuintes-openapi.json` preserva o contrato público recebido por GET em `/contribuintes/swagger/v1/swagger.json`, no host oficial adn.nfse.gov.br, sem incluir dados da autenticação.
+- `nfse_legacy/`: [pacote histórico 1.00 de produção](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/leiaute-e-esquemas-antigos/xsd_pl_nfse_1-00-producao.zip), referenciado no arquivo oficial de leiautes antigos. É alternativa estrita somente para documentos/eventos versão 1.00; não autoriza trocar versão ou alterar XML.
+
+O pacote NFS-e v1.01 publicado contém em TSSerieDPS o padrão `^0{0,4}\d{1,5}$`. Em XSD 1.0, as âncoras PCRE são interpretadas literalmente. O compilador local resolve exclusivamente esse padrão como `[0-9]{1,5}`, preservando o limite de cinco dígitos e o XSD original em disco. Essa compatibilidade é explícita em fiscal_transport.py. Nenhuma outra restrição é removida.
+
+Treze NFS-e recebidas não passaram nos pacotes conhecidos: ordem de pAliq e extensão xOutInf no leiaute 1.00. Em 21/10 foram reprocessadas como importações PARCIAIS, mantendo erro/revisão e exclusão dos valores elegíveis. O perfil limitado valida uma cópia em memória e o tipo oficial de xOutInf; não altera originais ou XSDs. Não há promoção a validação completa. A verificação da assinatura original encontrou 12 falhas e um certificado fora da validade na data declarada; validade fiscal não foi confirmada. Veja docs/NFSE-RECUPERACAO-PRODUCAO.md para cada NSU.
+
+O parser bloqueia DTD/entidades, restringe nomes de schema e tamanhos, descompacta com limite e não baixa XSD durante consultas. A validação XSD não é validação criptográfica da assinatura do documento. O transporte autentica o A1 e verifica TLS do servidor; não foi implementada verificação independente de assinatura/revogação de todos os XMLs recebidos.

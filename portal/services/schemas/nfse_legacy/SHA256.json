@@ -1,0 +1,10 @@
+{
+  "DPS_v1.00.xsd": "35b1efecd3a1a7eeea218f62a65becc3d27522ded22b7614e676bbf222cae651",
+  "evento_v1.00.xsd": "7d4a27fa480cd82d45e41ed2c7ab984b62df2fef25adcc195d6b5f89ad162c20",
+  "NFSe_v1.00.xsd": "2c78fa25f38345209f2dbd0b5f2bd1be224fd92404f6c86af219c1294af455ba",
+  "pedRegEvento_v1.00.xsd": "37e7977d249a4491e681fa615b9fd57502c17d68ba288b7d269f3f06ecf6e4f6",
+  "tiposComplexos_v1.00.xsd": "c8eb8be12bbfbc9418801a83438f8b85d8879eced4f6d7f1f3efa3374eea78ad",
+  "tiposEventos_v1.00.xsd": "0a762846875555fce30ea4ea9b86ad68648ac08cdf847a61a4bcdb08c5cf025d",
+  "tiposSimples_v1.00.xsd": "0774baf01f757c195e543104af16309d672072004332711ac8e3a21bd15fc9b3",
+  "xmldsig-core-schema_v1.00.xsd": "d87432c5f6ebb2bd61a1de357797401c203f14daefde834b73946f25f926a216"
+}

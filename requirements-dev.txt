@@ -1,0 +1,2 @@
+# Somente para renderizar PDFs sintéticos na conferência visual; não é usado pelo portal.
+pypdfium2==5.14.0

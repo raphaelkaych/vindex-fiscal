@@ -1,0 +1,4 @@
+Foi solicitada a recuperação do seu acesso ao Vindex Fiscal.
+Para escolher outra senha, abra:
+{{ protocol }}://{{ domain }}{% url 'password_reset_confirm' uidb64=uid token=token %}
+Se não solicitou, ignore esta mensagem. Sua senha permanece inalterada.

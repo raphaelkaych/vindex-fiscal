@@ -1,0 +1,8 @@
+{% extends 'portal/base.html' %}{% load portal_tags %}
+{% block title %}DANFE indisponível{% endblock %}
+{% block breadcrumb %}DANFE da nota{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow blue">DOCUMENTO AUXILIAR</span><h1>DANFE indisponível</h1><p>NF-e {{ invoice.number }} · {{ invoice.company.display_name }}</p></div></div>
+<div class="notice warning" role="alert">{% icon 'info' %}<span>{{ reason }}</span></div>
+<div class="button-row"><a class="button secondary" href="{% url 'invoice_detail' invoice.pk %}">Voltar à nota</a><a class="button primary" href="{% url 'xml_download' invoice.pk %}">{% icon 'download' %} Baixar XML original</a></div>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'portal/base.html' %}{% block title %}Revisar previsão{% endblock %}{% block breadcrumb %}Previsão financeira{% endblock %}{% block content %}
+<div class="page-heading"><div><span class="eyebrow blue">CONFERÊNCIA COM ORIGEM</span><h1>{% if item %}Revisar{% else %}Informar{% endif %} previsão</h1><p>NF-e {{ invoice.number }} · {{ invoice.company.display_name }} · {{ invoice.company.formatted_cnpj }}</p></div></div>
+<div class="notice warning"><span>Preencha somente as condições efetivamente acordadas. Data vazia permanece a definir. A previsão não representa agendamento ou pagamento. A informação original do XML é preservada.</span></div>
+<section class="panel form-panel"><form method="post" class="stack-form">{% csrf_token %}{% include 'portal/fields.html' %}<div class="form-actions"><a class="button secondary" href="{% url 'invoice_detail' invoice.pk %}">Voltar</a><button class="button primary" type="submit">Salvar para conferência</button></div></form></section>
+{% endblock %}

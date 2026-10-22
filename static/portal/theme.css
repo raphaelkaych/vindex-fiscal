@@ -1,0 +1,114 @@
+/* Cores semânticas: o azul institucional e a composição da marca são preservados. */
+:root {
+ color-scheme: light;
+ --link: var(--blue); --link-hover: #0346d5;
+ --text-secondary: #596b88; --text-subtle: #748098;
+ --soft: #eef3ff; --soft-hover: #f2f6ff;
+ --input: #fff; --input-line: #dae1ec; --placeholder: #a9b3c4;
+ --table-head: #fafbfd; --table-hover: #fcfdff; --table-line: #f0f2f7;
+ --info-bg: #edf3ff; --info-line: #dce7ff; --info-text: #56709a;
+ --warning-bg: #fff9eb; --warning-line: #f1dfb3; --warning-text: #9c7b33;
+ --success-bg: #edf8f4; --success-line: #cceadc; --success-text: #298168;
+ --danger-bg: #fff0f2; --danger-line: #f3cdd3; --danger-text: #bd4e5b;
+}
+:root[data-theme="dark"] {
+ color-scheme: dark;
+ --surface: #080f20; --white: #111d32; --ink: #e6edfa;
+ --muted: #a4b3cd; --line: #293953; --shadow: 0 3px 14px #0002;
+ --link: #8db3ff; --link-hover: #bad0ff;
+ --text-secondary: #c0cde2; --text-subtle: #a4b3cd;
+ --blue-light: #1b3054; --soft: #1b3054; --soft-hover: #213959;
+ --input: #0d1729; --input-line: #40516e; --placeholder: #8d9eb9;
+ --table-head: #152238; --table-hover: #192a43; --table-line: #293953;
+ --info-bg: #162c4b; --info-line: #355783; --info-text: #b1ccf5;
+ --warning-bg: #332a17; --warning-line: #6d5730; --warning-text: #f0ce81;
+ --success-bg: #14372e; --success-line: #30634d; --success-text: #91ddba;
+ --danger-bg: #3b202c; --danger-line: #754050; --danger-text: #ffb0c0;
+}
+/* Sem JavaScript, acompanha o sistema e mantém os formulários utilizáveis. */
+@media (prefers-color-scheme: dark) {
+ :root:not([data-theme]) {
+  color-scheme: dark;
+  --surface: #080f20; --white: #111d32; --ink: #e6edfa;
+  --muted: #a4b3cd; --line: #293953; --shadow: 0 3px 14px #0002;
+  --link: #8db3ff; --link-hover: #bad0ff;
+  --text-secondary: #c0cde2; --text-subtle: #a4b3cd;
+  --blue-light: #1b3054; --soft: #1b3054; --soft-hover: #213959;
+  --input: #0d1729; --input-line: #40516e; --placeholder: #8d9eb9;
+  --table-head: #152238; --table-hover: #192a43; --table-line: #293953;
+  --info-bg: #162c4b; --info-line: #355783; --info-text: #b1ccf5;
+  --warning-bg: #332a17; --warning-line: #6d5730; --warning-text: #f0ce81;
+  --success-bg: #14372e; --success-line: #30634d; --success-text: #91ddba;
+  --danger-bg: #3b202c; --danger-line: #754050; --danger-text: #ffb0c0;
+ }
+}
+.theme-controls {display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.theme-controls[hidden],.theme-toggle[hidden],.theme-toggle [hidden] {display:none}
+.theme-toggle {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--white);color:var(--text-secondary);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.theme-toggle:hover {background:var(--soft-hover);color:var(--link)}
+.theme-toggle[aria-pressed="true"] {background:var(--soft);border-color:var(--info-line);color:var(--link)}
+.theme-toggle .icon {width:17px;height:17px}
+.theme-toggle:focus-visible {outline:3px solid var(--link);outline-offset:3px}
+.theme-toolbar {display:flex;justify-content:flex-end;margin-bottom:24px}
+.topbar-left {min-width:0}
+@media (max-width:480px) {
+ .theme-controls {gap:8px}
+ .topbar .theme-toggle {width:40px;padding:8px}
+ .topbar .theme-toggle span {display:none}
+}
+
+/* Superfícies, controles nativos e estados de interação. */
+.panel,.stat-card,.auth-page,.button.secondary,.skip-link {background:var(--white)}
+.company-filter select {background-color:var(--input)}
+input:not([type=checkbox]):not([type=file]),select,textarea {background:var(--input);border-color:var(--input-line)}
+input[type=file] {background:var(--surface);border-color:var(--input-line)}
+input[type=file]::file-selector-button {background:var(--white);border-color:var(--input-line);color:var(--link)}
+.button.secondary {border-color:var(--input-line)}
+.button.secondary:hover,.icon-button:hover {background:var(--soft-hover);border-color:var(--info-line)}
+.avatar,.stat-icon,.soft-icon,.company-avatar,.empty-symbol,.upload-symbol {background:var(--soft)}
+.avatar {border-color:var(--info-line)}
+th {background:var(--table-head);border-color:var(--table-line)}
+td,.company-summary {border-color:var(--table-line)}
+tbody tr:hover {background:var(--table-hover)}
+.bar-track,.company-tag {background:var(--soft)}
+.forecast-footer {background:var(--table-hover);border-color:var(--line)}
+.app-footer {border-color:var(--line)}
+.drop-zone {background:var(--table-hover);border-color:var(--input-line)}
+.drop-zone.dragging {background:var(--soft);border-color:var(--link)}
+.auth-tabs {background:var(--surface);border-color:var(--line)}
+.auth-tabs a.selected {background:var(--white)}
+.notice,.message {background:var(--info-bg);border-color:var(--info-line);color:var(--info-text)}
+.notice.warning {background:var(--warning-bg);border-color:var(--warning-line);color:var(--warning-text)}
+.notice.warning>.icon,.notice.warning strong {color:var(--warning-text)}
+.pill.neutral {background:var(--surface);color:var(--text-secondary)}
+.pill.success,.message.success {background:var(--success-bg);color:var(--success-text);border-color:var(--success-line)}
+.pill.warning,.stat-icon.amber {background:var(--warning-bg);color:var(--warning-text)}
+.pill.danger,.message.error,.errorlist {background:var(--danger-bg);color:var(--danger-text);border-color:var(--danger-line)}
+
+/* Ajustes de contraste apenas no escuro; os tons originais do claro permanecem. */
+:root[data-theme="dark"] a:not([class]),
+ :root[data-theme="dark"] :is(.skip-link,.text-link,.text-button:not(.danger-text),.eyebrow.blue,.auth-step,.table-main:hover,.forecast-footer,.auth-tabs a.selected,.notice:not(.warning)>.icon,.avatar,.stat-icon:not(.amber),.soft-icon,.company-avatar,.empty-symbol,.upload-symbol,.icon-button:hover) {color:var(--link)}
+ :root[data-theme="dark"] :is(.breadcrumb,.breadcrumb span,.local-pill,.section-title>span,.stat-label,.stat-card>small,.panel-heading p,td small,.table-empty,.demo-label,.forecast-row>div:first-child,.company-summary .grow small,.activity-item small,.empty-inline,.demo-note,.app-footer,.onboarding p,.company-legal,.cnpj-line,.company-card-stats span,.cert-line,.empty-state p,.field-help,.guidance p,.guidance li,.footnote,.pagination,.drop-zone p,.title-secondary,.detail-label,.invoice-summary small,.key-panel p,.account-banner small,.demo-panel p,.auth-tabs a,.auth-local) {color:var(--text-subtle)}
+ :root[data-theme="dark"] :is(.breadcrumb strong,.button.secondary,td strong,.table-main,.forecast-row strong,.company-tag,.activity-item p,.form-field>label,.filter-field>label,.key-panel code) {color:var(--text-secondary)}
+ :root[data-theme="dark"] :is(input:not([type=checkbox]):not([type=file]),select,textarea) {color:var(--ink)}
+ :root[data-theme="dark"] input::placeholder {color:var(--placeholder)}
+ :root[data-theme="dark"] th {color:var(--text-subtle)}
+ :root[data-theme="dark"] .notice:not(.warning) strong {color:var(--info-text)}
+ :root[data-theme="dark"] .danger-text {color:var(--danger-text)}
+ :root[data-theme="dark"] .amber-text {color:var(--warning-text)!important}
+ :root[data-theme="dark"] .activity-dot {box-shadow:0 0 0 4px var(--soft)}
+ :root[data-theme="dark"] .account-link:hover {color:var(--link-hover)}
+@media (prefers-color-scheme:dark) {
+:root:not([data-theme]) a:not([class]),
+ :root:not([data-theme]) :is(.skip-link,.text-link,.text-button:not(.danger-text),.eyebrow.blue,.auth-step,.table-main:hover,.forecast-footer,.auth-tabs a.selected,.notice:not(.warning)>.icon,.avatar,.stat-icon:not(.amber),.soft-icon,.company-avatar,.empty-symbol,.upload-symbol,.icon-button:hover) {color:var(--link)}
+ :root:not([data-theme]) :is(.breadcrumb,.breadcrumb span,.local-pill,.section-title>span,.stat-label,.stat-card>small,.panel-heading p,td small,.table-empty,.demo-label,.forecast-row>div:first-child,.company-summary .grow small,.activity-item small,.empty-inline,.demo-note,.app-footer,.onboarding p,.company-legal,.cnpj-line,.company-card-stats span,.cert-line,.empty-state p,.field-help,.guidance p,.guidance li,.footnote,.pagination,.drop-zone p,.title-secondary,.detail-label,.invoice-summary small,.key-panel p,.account-banner small,.demo-panel p,.auth-tabs a,.auth-local) {color:var(--text-subtle)}
+ :root:not([data-theme]) :is(.breadcrumb strong,.button.secondary,td strong,.table-main,.forecast-row strong,.company-tag,.activity-item p,.form-field>label,.filter-field>label,.key-panel code) {color:var(--text-secondary)}
+ :root:not([data-theme]) :is(input:not([type=checkbox]):not([type=file]),select,textarea) {color:var(--ink)}
+ :root:not([data-theme]) input::placeholder {color:var(--placeholder)}
+ :root:not([data-theme]) th {color:var(--text-subtle)}
+ :root:not([data-theme]) .notice:not(.warning) strong {color:var(--info-text)}
+ :root:not([data-theme]) .danger-text {color:var(--danger-text)}
+ :root:not([data-theme]) .amber-text {color:var(--warning-text)!important}
+ :root:not([data-theme]) .activity-dot {box-shadow:0 0 0 4px var(--soft)}
+ :root:not([data-theme]) .account-link:hover {color:var(--link-hover)}
+}

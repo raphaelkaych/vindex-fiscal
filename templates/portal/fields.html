@@ -1,0 +1,8 @@
+{{ form.non_field_errors }}
+{% for field in form %}
+{% if field.field.widget.input_type == 'checkbox' and field.field.widget.allow_multiple_selected %}
+<fieldset class="form-field choice-group"><legend>{{ field.label }}</legend>{{ field }}{{ field.errors }}{% if field.help_text %}<div class="field-help">{{ field.help_text|safe }}</div>{% endif %}</fieldset>
+{% else %}
+<div class="form-field {% if field.field.widget.input_type == 'checkbox' %}checkbox-field{% endif %}">{% if field.field.widget.input_type == 'checkbox' %}{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}{{ field.errors }}{% if field.help_text %}<div class="field-help">{{ field.help_text|safe }}</div>{% endif %}</div>
+{% endif %}
+{% endfor %}
