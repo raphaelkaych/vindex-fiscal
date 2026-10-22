@@ -36,3 +36,18 @@ form.is-submitting [aria-disabled=true]{cursor:wait}form.is-submitting .button[a
 
 .page-heading h1,.company-card h2,.company-legal,.company-summary .grow strong,.account-banner strong{overflow-wrap:anywhere}
 @media(max-width:500px){.stat-grid{grid-template-columns:1fr}.stat-card>strong.money-stat{font-size:27px}}
+
+/* Área de NFS-e: usa os tokens compartilhados nos dois temas. */
+.nfse-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px}
+.nfse-summary .panel{padding:20px 24px;display:flex;flex-direction:column;gap:10px}
+.nfse-summary span,.nfse-data dt{color:var(--muted);font-size:12px}
+.nfse-summary strong{font-size:28px;font-variant-numeric:tabular-nums}
+.nfse-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:end}
+.nfse-filters label{min-width:0}.nfse-filters .button-row{grid-column:1/-1}
+.nfse-panel{padding:24px;margin-bottom:20px}.nfse-panel h2{font-size:17px;margin-bottom:18px}
+.nfse-data{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;margin:0}
+.nfse-data div{min-width:0}.nfse-data dd{margin:6px 0 0;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.65}
+.nfse-description{grid-column:1/-1}.nfse-key{overflow-wrap:anywhere;font-variant-numeric:tabular-nums;line-height:1.8}
+.nfse-money{white-space:nowrap;font-variant-numeric:tabular-nums}.nfse-panel .page-heading{gap:20px}
+@media(max-width:900px){.nfse-filters,.nfse-data{grid-template-columns:repeat(2,minmax(0,1fr))}.nfse-panel .page-heading{flex-direction:column;align-items:flex-start}}
+@media(max-width:600px){.nfse-summary,.nfse-filters,.nfse-data{grid-template-columns:1fr}.nfse-summary{gap:10px}.nfse-summary .panel{padding:16px 20px;flex-direction:row;align-items:center;justify-content:space-between}.nfse-panel{padding:20px 16px}.nfse-filters .button-row{width:100%}}

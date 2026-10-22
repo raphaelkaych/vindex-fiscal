@@ -23,12 +23,14 @@ class NfsePdfTests(SimpleTestCase):
         doc=sample_document(); original=doc.xml_content
         pages=PdfReader(BytesIO(generate_nfse_pdf(doc))).pages
         text='\n'.join(page.extract_text() for page in pages)
-        self.assertIn('123.45',text)
+        self.assertIn('123,45',text)
         self.assertIn('Não substitui',text)
         self.assertIn('CANCELAMENTO',text)
         self.assertIn('SEM VALIDADE',text)
         self.assertIn('FICTÍCIO',text)
-        self.assertGreater(len(pages),1)
+        self.assertEqual(len(pages),1)
+        self.assertIn(doc.access_key,text)
+        self.assertIn('NT 008',text)
         self.assertEqual(doc.xml_content,original)
     @patch('portal.services.nfse_pdf.validate_xml')
     def test_key_mismatch_cannot_generate_pdf(self, validate):

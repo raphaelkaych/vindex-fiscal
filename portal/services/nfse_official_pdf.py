@@ -19,7 +19,7 @@ def public_url(document):
 
 def capabilities(document):
     return {'official_available':bool(document.official_pdf_source) and document.official_pdf is not None,
-        'public_url':public_url(document),'local_kind':'PDF de conferência gerado pelo Vindex',
+        'public_url':public_url(document),'local_kind':'DANFSe recuperado' if document.official_pdf_source and document.official_pdf is not None else 'PDF de conferência' if document.validation_status=='partial' else 'DANFSe gerado pelo Vindex',
         'reason':'API DANFSe do ADN desativada; nenhum conector municipal homologado configurado.' if not ADAPTERS else 'Cobertura depende de município, ambiente e autorizações.'}
 
 

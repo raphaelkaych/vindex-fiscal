@@ -16,6 +16,7 @@ READ_VIEWS = frozenset({
     'capture_document', 'capture_document_download', 'fiscal_documents',
     'fiscal_document', 'fiscal_xml', 'fiscal_pdf', 'fiscal_envelope_xml',
     'fiscal_connectors', 'integration_list','pending_documents','indicators',
+    'nfse_list', 'nfse_detail', 'nfse_xml', 'nfse_pdf',
 })
 
 

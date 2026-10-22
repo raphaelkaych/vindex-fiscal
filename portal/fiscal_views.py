@@ -93,17 +93,29 @@ def documents(request):
 @login_required
 @never_cache
 @require_safe
-def document_detail(request,pk):
-    doc=get_object_or_404(FiscalDocument,pk=pk,company__workspace=workspace_for(request))
+def document_detail(request,pk,service=None):
+    qs=FiscalDocument.objects.filter(company__workspace=workspace_for(request))
+    if service:qs=qs.filter(service=service)
+    doc=get_object_or_404(qs,pk=pk)
     from .services.nfse_official_pdf import capabilities
+    if doc.service=='nfse':
+        from .services.nfse_presentation import read_nfse,parties,sections,extra_fields,DPS
+        context={'document':doc,'pdf_capabilities':capabilities(doc)}
+        try:
+            info=read_nfse(doc)
+            context.update(parties=parties(info),sections=sections(info),ibs_fields=extra_fields(info,'IBSCBS')+extra_fields(info,DPS+'IBSCBS'))
+        except SefazError as error:context['presentation_error']=str(error)
+        return render(request,'portal/nfse_detail.html',context)
     return render(request,'portal/fiscal_document.html',{'document':doc,'pdf_capabilities':capabilities(doc) if doc.service=='nfse' else {}})
 
 
 @login_required
 @never_cache
 @require_safe
-def document_xml(request,pk):
-    doc=get_object_or_404(FiscalDocument,pk=pk,company__workspace=workspace_for(request))
+def document_xml(request,pk,service=None):
+    qs=FiscalDocument.objects.filter(company__workspace=workspace_for(request))
+    if service:qs=qs.filter(service=service)
+    doc=get_object_or_404(qs,pk=pk)
     response=HttpResponse(doc.xml_content,content_type='application/xml; charset=utf-8')
     response['Content-Disposition']=f'attachment; filename="{doc.service}-{doc.access_key}.xml"';response['X-Content-Type-Options']='nosniff'
     return response
@@ -122,14 +134,57 @@ def envelope_xml(request,pk):
 @login_required
 @never_cache
 @require_safe
-def document_pdf(request,pk):
-    doc=get_object_or_404(FiscalDocument,pk=pk,company__workspace=workspace_for(request))
+def document_pdf(request,pk,service=None):
+    qs=FiscalDocument.objects.filter(company__workspace=workspace_for(request))
+    if service:qs=qs.filter(service=service)
+    doc=get_object_or_404(qs,pk=pk)
     from .services.dacte import generate_dacte
     from .services.nfse_pdf import generate_nfse_pdf
     try:payload=generate_nfse_pdf(doc) if doc.service=='nfse' else generate_dacte(doc)
     except SefazError as error:
         messages.error(request,str(error));return redirect('fiscal_document',pk=doc.pk)
     response=HttpResponse(payload,content_type='application/pdf')
-    prefix=('danfse-recuperado' if doc.official_pdf_source and doc.official_pdf is not None else 'nfse-conferencia') if doc.service=='nfse' else 'dacte'
+    prefix=('danfse-recuperado' if doc.official_pdf_source and doc.official_pdf is not None else 'nfse-conferencia' if doc.validation_status=='partial' else 'danfse-vindex') if doc.service=='nfse' else 'dacte'
     response['Content-Disposition']=f'attachment; filename="{prefix}-{doc.access_key}.pdf"';response['X-Content-Type-Options']='nosniff'
     return response
+
+
+class NfseFilterForm(forms.Form):
+    q=forms.CharField(label='Buscar número, prestador ou chave',required=False,max_length=100)
+    company=forms.ModelChoiceField(label='Empresa',queryset=Company.objects.none(),required=False,empty_label='Todas as empresas')
+    environment=forms.ChoiceField(label='Ambiente',required=False,choices=[('1','Produção'),('2','Homologação'),('','Todos')])
+    status=forms.ChoiceField(label='Situação',required=False,choices=[('','Todas'),('schema','Schema validado'),('partial','Parcial — revisar'),('cancelled','Cancelamento recebido'),('substituted','Substituição recebida')])
+    start=forms.DateField(label='Emissão a partir de',required=False,widget=forms.DateInput(attrs={'type':'date'}))
+    end=forms.DateField(label='Emissão até',required=False,widget=forms.DateInput(attrs={'type':'date'}))
+    def clean(self):
+        data=super().clean()
+        if data.get('start') and data.get('end') and data['end']<data['start']:
+            self.add_error('end','A data final deve ser igual ou posterior à inicial.')
+        return data
+
+
+@login_required
+@never_cache
+@require_safe
+def nfse_list(request):
+    from django.db.models import Q,Count
+    workspace=workspace_for(request)
+    data=request.GET.copy();data.setdefault('environment','1')
+    form=NfseFilterForm(data)
+    form.fields['company'].queryset=Company.objects.filter(workspace=workspace).order_by('legal_name')
+    qs=FiscalDocument.objects.filter(company__workspace=workspace,service='nfse')
+    if form.is_valid():
+        filters=form.cleaned_data
+        if filters['q']:
+            q=filters['q'];qs=qs.filter(Q(number__icontains=q)|Q(issuer_name__icontains=q)|Q(issuer_cnpj__icontains=q)|Q(access_key__icontains=q))
+        if filters['company']:qs=qs.filter(company=filters['company'])
+        if filters['environment']:qs=qs.filter(environment=filters['environment'])
+        if filters['status'] in {'schema','partial'}:qs=qs.filter(validation_status=filters['status'])
+        elif filters['status']=='cancelled':qs=qs.filter(cancellation_reported=True)
+        elif filters['status']=='substituted':qs=qs.filter(substitution_reported=True)
+        if filters['start']:qs=qs.filter(issued_at__date__gte=filters['start'])
+        if filters['end']:qs=qs.filter(issued_at__date__lte=filters['end'])
+    else:qs=qs.none()
+    counts=qs.aggregate(total=Count('pk'),partial=Count('pk',filter=Q(validation_status='partial')),cancelled=Count('pk',filter=Q(cancellation_reported=True)))
+    qs=qs.select_related('company').defer('xml_content','official_pdf','validation_details','payment_data').order_by('-issued_at','-pk')
+    return render(request,'portal/nfse_list.html',{'form':form,'counts':counts,'page':paginate(request,qs,25)})

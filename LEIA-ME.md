@@ -1,5 +1,7 @@
 # Vindex Fiscal — plataforma local e API própria
 
+**Notas de serviço:** nova área **Notas de serviço · NFS-e**, com filtros, detalhes, XML original e PDF local baseado no DANFSe nacional. Parciais continuam como conferência. Veja [uso, conferência e limites do PDF](docs/AREA-NFSE-E-PDF.md).
+
 **Gerenciamento atualizado (22/10/2026):** [contas, empresas, A1, serviços, auditoria 656 e preparação PostgreSQL](docs/GESTAO-CADASTROS-656-POSTGRES.md). Em Gestão master → Operação e cadastros, use **Gerenciar conta, empresas e certificados**. Desativação preserva histórico; exclusão física só é permitida para cadastro vazio. Nenhum cadastro real foi removido automaticamente e a rejeição NF-e ainda não foi considerada resolvida.
 
 **Revisão final de 22/10/2026:** [relatório operacional, arquitetura, diagnóstico e roteiro de publicação](docs/REVISAO-FINAL-E-PUBLICACAO.md). Ajustes pontuais de status/desempenho e bloqueio da API para contas pendentes/suspensas; 345 testes aprovados. NF-e continua com última resposta 656; CT-e/NFS-e têm estados próprios. Nenhuma consulta fiscal, alteração de cursor/intervalo ou publicação foi executada nessa revisão. Homologação de infraestrutura ainda é obrigatória.
