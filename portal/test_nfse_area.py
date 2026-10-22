@@ -97,6 +97,15 @@ class NfseLayoutTests(SimpleTestCase):
         self.assertAlmostEqual(float(pdf.pages[0].mediabox.width),595.28,places=1)
         links=[annotation.get_object().get('/A',{}).get('/URI','') for annotation in pdf.pages[0].get('/Annots',[])]
         self.assertIn('https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave='+document.access_key,links)
+        # Logo e QR incorporados; QR quadrado, legível e dentro da coluna direita.
+        self.assertGreaterEqual(len(pdf.pages[0].images),2)
+        annotation=next(item.get_object() for item in pdf.pages[0]['/Annots'] if item.get_object().get('/A',{}).get('/URI','').endswith(document.access_key))
+        x0,y0,x1,y1=map(float,annotation['/Rect'])
+        self.assertAlmostEqual(x1-x0,y1-y0,places=2)
+        self.assertGreaterEqual((x1-x0)*25.4/72,15.2)
+        self.assertGreater(x0*25.4/72,156)
+        self.assertLess(x1*25.4/72,207)
+        self.assertIn('portal nacional da NFS-e.',pdf.pages[0].extract_text())
         self.assertEqual(document.xml_content,original)
         self.assertIn('R$ 123,45',pdf.pages[0].extract_text())
         self.assertNotIn('R$ 0,00',pdf.pages[0].extract_text())

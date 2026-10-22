@@ -1,5 +1,7 @@
 # Vindex Fiscal — plataforma local e API própria
 
+**Transportes:** nova área **Transportes · CT-e**, com filtros, detalhes, XML original e DACTE gerado localmente. Inclui proteção do QR contra marcas d'água e os refinamentos anteriores do PDF de NFS-e. Veja [uso, testes e limites de CT-e/DACTE](docs/AREA-CTE-E-DACTE.md).
+
 **Notas de serviço:** nova área **Notas de serviço · NFS-e**, com filtros, detalhes, XML original e PDF local baseado no DANFSe nacional. Parciais continuam como conferência. Veja [uso, conferência e limites do PDF](docs/AREA-NFSE-E-PDF.md).
 
 **Gerenciamento atualizado (22/10/2026):** [contas, empresas, A1, serviços, auditoria 656 e preparação PostgreSQL](docs/GESTAO-CADASTROS-656-POSTGRES.md). Em Gestão master → Operação e cadastros, use **Gerenciar conta, empresas e certificados**. Desativação preserva histórico; exclusão física só é permitida para cadastro vazio. Nenhum cadastro real foi removido automaticamente e a rejeição NF-e ainda não foi considerada resolvida.

@@ -18,6 +18,7 @@ register.filter('cnpj',format_cnpj)
 @register.simple_tag
 def icon(name):
     shapes={
+        'truck':'<path d="M3 5h11v12H3zM14 9h4l3 4v4h-7M7 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4M18 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>',
         'chart':'<path d="M4 3v18h17M8 16v-4M13 16V7M18 16v-7"/>',
         'layers':'<path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/>',
         'grid':'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',

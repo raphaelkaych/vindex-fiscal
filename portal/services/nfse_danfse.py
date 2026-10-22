@@ -52,10 +52,10 @@ def render_danfse(document, info):
         text(4,y+.6,202,3,label.upper(),7,True)
         y+=title_height
 
-    def row(cells,height=None):
+    def row(cells,height=None,width=204):
         nonlocal y
         height=height or (7 if compact else 8)
-        width=204/len(cells)
+        width=width/len(cells)
         for index,(label,content) in enumerate(cells):
             x=3+index*width
             pdf.rect(x,y,width,height)
@@ -65,15 +65,21 @@ def render_danfse(document, info):
 
     pdf.set_fill_color(242)
     pdf.rect(3,3,204,12,style='DF')
-    text(5,5,48,7,'NFS-e',17,True)
-    text(54,4.5,99,4,'DANFSe v2.0' if not partial else 'NFS-e | CONFERÊNCIA',9,True,'C')
-    text(54,8.5,99,4,'Documento Auxiliar da NFS-e',9,True,'C')
-    text(155,4,50,4,value(info,'xLocEmi'))
-    text(155,8,50,4,'Homologação' if document.environment=='2' else 'Produção')
+    logo=Path(__file__).resolve().parents[2]/'static/portal/nfse-logo-oficial.png'
+    pdf.image(str(logo),x=5,y=4.8,w=43,keep_aspect_ratio=True)
+    text(54,4,99,3,'DANFSe v2.0' if not partial else 'NFS-e | CONFERÊNCIA',9,True,'C')
+    text(54,7.3,99,3,'Documento Auxiliar da NFS-e',9,True,'C')
+    if document.environment=='2':
+        pdf.set_text_color(190,0,0)
+        text(54,10.6,99,3,'NFS-e SEM VALIDADE JURÍDICA',9,True,'C')
+        pdf.set_text_color(0)
+    municipality=' / '.join(filter(None,[value(info,'xLocEmi'),value(info,'emit/enderNac/UF')]))
+    text(155,4,50,3,municipality,8)
+    text(155,7.4,50,3,'Ambiente gerador: '+(value(info,'ambGer') or 'Não informado'),6)
+    text(155,10.5,50,3,'Ambiente: '+('Homologação' if document.environment=='2' else 'Produção'),6)
     y=15
     warning=[]
     if partial:warning.append('IMPORTAÇÃO PARCIAL - REVISAR ESTRUTURA E ASSINATURA')
-    if document.environment=='2':warning.append('NFS-e SEM VALIDADE JURÍDICA')
     if getattr(document,'substitution_reported',False):warning.append('SUBSTITUIÇÃO RECEBIDA')
     elif document.cancellation_reported:warning.append('CANCELAMENTO RECEBIDO')
     if warning:
@@ -92,10 +98,14 @@ def render_danfse(document, info):
         text(x,top,49,3,label,6,True)
         text(x,top+3.2,49,4,date_text(value(info,path)))
     url='https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave='+document.access_key
-    pdf.image(make_qr_code_image(url,box_size=6,border=4),x=171,y=start,w=24,h=24,link=url)
+    # Coluna reservada de 51 x 34 mm: QR quadrado centralizado, margem
+    # branca de quatro módulos e legenda separada dos campos à esquerda.
+    pdf.rect(156,start,51,34)
+    pdf.image(make_qr_code_image(url,box_size=6,border=4),x=170.5,y=start+.5,w=22,h=22,link=url)
+    text(157,start+24,49,9,'A autenticidade desta NFS-e pode ser verificada pela leitura deste código QR ou pela consulta da chave de acesso no portal nacional da NFS-e.',6)
     y=start+26
     row([('Emitente da NFS-e',display(info,DPS+'tpEmit',{'1':'Prestador','2':'Tomador','3':'Intermediário'})),
-         ('Situação no XML (código)',value(info,'cStat')),('Finalidade (código)',value(info,DPS+'IBSCBS/finNFSe'))])
+         ('Situação no XML (código)',value(info,'cStat')),('Finalidade (código)',value(info,DPS+'IBSCBS/finNFSe'))],width=153)
     for party in parties(info):
         title(party['title'])
         if party['missing']:

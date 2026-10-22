@@ -106,6 +106,18 @@ def document_detail(request,pk,service=None):
             context.update(parties=parties(info),sections=sections(info),ibs_fields=extra_fields(info,'IBSCBS')+extra_fields(info,DPS+'IBSCBS'))
         except SefazError as error:context['presentation_error']=str(error)
         return render(request,'portal/nfse_detail.html',context)
+    if doc.service=='cte':
+        from .services.cte_presentation import read_cte,party_rows,sections,extra_fields,references,qr_url,ROLES
+        context={'document':doc,'role_label':', '.join(ROLES.get(role,role) for role in doc.role.split(','))}
+        try:
+            root,info=read_cte(doc)
+            context.update(parties=party_rows(info),sections=sections(root,info),
+                ibs_fields=extra_fields(info,'imp/IBSCBS'),modal_fields=extra_fields(info,'infCTeNorm/infModal'),
+                references=paginate(request,references(info),25,param='references_page',size_param='references_per_page'))
+            try:context['public_url']=qr_url(root,doc.access_key,doc.environment)
+            except SefazError as error:context['qr_error']=str(error)
+        except SefazError as error:context['presentation_error']=str(error)
+        return render(request,'portal/cte_detail.html',context)
     return render(request,'portal/fiscal_document.html',{'document':doc,'pdf_capabilities':capabilities(doc) if doc.service=='nfse' else {}})
 
 
@@ -163,16 +175,32 @@ class NfseFilterForm(forms.Form):
         return data
 
 
+class CteFilterForm(NfseFilterForm):
+    q=forms.CharField(label='Buscar número, transportador ou chave',required=False,max_length=100)
+    status=forms.ChoiceField(label='Situação',required=False,choices=[('','Todas'),('schema','Schema validado'),('cancelled','Cancelamento recebido')])
+
+
 @login_required
 @never_cache
 @require_safe
 def nfse_list(request):
+    return _service_list(request,'nfse',NfseFilterForm,'portal/nfse_list.html')
+
+
+@login_required
+@never_cache
+@require_safe
+def cte_list(request):
+    return _service_list(request,'cte',CteFilterForm,'portal/cte_list.html')
+
+
+def _service_list(request,service,form_class,template):
     from django.db.models import Q,Count
     workspace=workspace_for(request)
     data=request.GET.copy();data.setdefault('environment','1')
-    form=NfseFilterForm(data)
+    form=form_class(data)
     form.fields['company'].queryset=Company.objects.filter(workspace=workspace).order_by('legal_name')
-    qs=FiscalDocument.objects.filter(company__workspace=workspace,service='nfse')
+    qs=FiscalDocument.objects.filter(company__workspace=workspace,service=service)
     if form.is_valid():
         filters=form.cleaned_data
         if filters['q']:
@@ -185,6 +213,6 @@ def nfse_list(request):
         if filters['start']:qs=qs.filter(issued_at__date__gte=filters['start'])
         if filters['end']:qs=qs.filter(issued_at__date__lte=filters['end'])
     else:qs=qs.none()
-    counts=qs.aggregate(total=Count('pk'),partial=Count('pk',filter=Q(validation_status='partial')),cancelled=Count('pk',filter=Q(cancellation_reported=True)))
+    counts=qs.aggregate(total=Count('pk'),validated=Count('pk',filter=Q(validation_status='schema')),partial=Count('pk',filter=Q(validation_status='partial')),cancelled=Count('pk',filter=Q(cancellation_reported=True)))
     qs=qs.select_related('company').defer('xml_content','official_pdf','validation_details','payment_data').order_by('-issued_at','-pk')
-    return render(request,'portal/nfse_list.html',{'form':form,'counts':counts,'page':paginate(request,qs,25)})
+    return render(request,template,{'form':form,'counts':counts,'page':paginate(request,qs,25)})
