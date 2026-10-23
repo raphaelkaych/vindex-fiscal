@@ -1,5 +1,7 @@
 # Identidade visual aplicada
 
+Os filtros de Documentos consolidados e Indicadores e a página de tutorial usam `static/portal/workspace-tools.css`: cabeçalhos com ícones, campos padronizados, refinamentos em expansão nativa, etiquetas de filtros e grade responsiva. Os componentes reutilizam `--white`, `--input`, `--ink`, `--muted`, `--line`, `--blue-light`, `--link` e `--focus`; não há uma paleta paralela nem outra fonte. O tutorial usa o fundo institucional no cabeçalho e cartões com navegação por assunto. A conferência automatizada disponível está descrita em `docs/TUTORIAL-E-REFINAMENTO-DE-FILTROS.md`.
+
 Referência: imagem da Vindex enviada pelo usuário nesta conversa. O arquivo original é uma peça institucional, não um arquivo vetorial do logotipo.
 
 ## Direção

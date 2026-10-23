@@ -112,7 +112,14 @@ def indicators(request):
     for i,panel in enumerate(panels):
         panel['color']=colors[i%len(colors)];stop=offset+100*panel['count']/max(1,len(groups))
         segments.append(f"{panel['color']} {offset:.4f}% {stop:.4f}%");offset=stop
+    presets=[]
+    for label,preset_start,preset_end in [('Este mês',today.replace(day=1),today),('Últimos 30 dias',today-timedelta(days=29),today),('Este ano',today.replace(month=1,day=1),today)]:
+        preset_query=request.GET.copy()
+        for key in list(preset_query):
+            if key not in {'company','type','environment'}:preset_query.pop(key,None)
+        preset_query['from']=preset_start.isoformat();preset_query['to']=preset_end.isoformat()
+        presets.append({'label':label,'query':preset_query.urlencode(),'active':start==preset_start and end==preset_end})
     return render(request,'portal/indicators.html',{'panels':panels,'companies':operational_companies(workspace),'from_date':start.isoformat(),'to_date':end.isoformat(),
-        'comparison_ready':comparison_ready,'previous_start':previous_start,'previous_end':previous_end,'ring_gradient':', '.join(segments) or 'var(--line) 0% 100%',
+        'period_presets':presets,'comparison_ready':comparison_ready,'previous_start':previous_start,'previous_end':previous_end,'ring_gradient':', '.join(segments) or 'var(--line) 0% 100%',
         'record_count':len(groups),'captured_count':sum(g['captured'] for g in groups.values()),'partial_count':sum(g['partial'] for g in groups.values()),
         'pending_count':deliveries.exclude(error='').count(),'official_pdf_count':sum(g['pdf'] for g in groups.values()),'unknown_environment':unknown_environment})

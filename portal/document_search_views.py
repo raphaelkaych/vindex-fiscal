@@ -32,6 +32,16 @@ class SearchForm(forms.Form):
     ncm=forms.RegexField(label='NCM',regex=r'^\d{2,8}$',required=False,max_length=8)
     cfop=forms.RegexField(label='CFOP',regex=r'^\d{4}$',required=False,max_length=4)
     environment=forms.ChoiceField(label='Ambiente',required=False,choices=[('','Todos, identificados separadamente'),('1','Produção'),('2','Homologação')])
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        placeholders={'product':'Nome do produto, serviço ou código','issuer':'Nome ou parte da razão social',
+            'issuer_cnpj':'00.000.000/0000-00','recipient_cnpj':'00.000.000/0000-00',
+            'number':'Número da nota','series':'Série','key':'Chave completa ou parte dela',
+            'code':'Código informado no XML','ncm':'Ex.: 23091000','cfop':'Ex.: 5102',
+            'minimum':'Sem mínimo','maximum':'Sem máximo'}
+        for name,placeholder in placeholders.items():self.fields[name].widget.attrs['placeholder']=placeholder
+        for name in ['ncm','cfop']:self.fields[name].widget.attrs['inputmode']='numeric'
+        self.fields['product'].help_text='A busca ignora acentos e diferenças entre maiúsculas e minúsculas.'
     def clean(self):
         data=super().clean()
         if data.get('start') and data.get('end') and data['start']>data['end']:self.add_error('end','A data final deve ser igual ou posterior à inicial.')
@@ -78,7 +88,29 @@ def documents(request):
     from django.db.models import Prefetch
     qs=qs.prefetch_related(Prefetch('items',queryset=FiscalSearchItem.objects.filter(item_q).order_by('position'),to_attr='matching_items'))
     missing=Invoice.objects.filter(company__workspace=workspace,is_demo=False,search_record__isnull=True).count()+FiscalDocument.objects.filter(company__workspace=workspace,search_record__isnull=True).count()
-    return render(request,'portal/fiscal_documents.html',dict(form=form,page=paginate(request,qs,25),companies=operational_companies(workspace),query_string=query.urlencode(),missing_index=missing,item_search=bool(item_q)))
+    groups=[]
+    for title,description,names in [
+        ('Documento','Identifique uma nota ou refine sua situação e ambiente.',['number','series','key','status','environment']),
+        ('Participantes','Encontre documentos de um fornecedor ou destinatário.',['issuer','issuer_cnpj','recipient_cnpj']),
+        ('Itens e valores','Combine classificação, código e faixa de valor do documento.',['code','ncm','cfop','minimum','maximum'])]:
+        groups.append({'title':title,'description':description,'fields':[form[name] for name in names]})
+    advanced_names=[field.name for group in groups for field in group['fields']]
+    advanced_count=sum(bool(request.GET.get(name)) for name in advanced_names)
+    chips=[]
+    if form.is_valid():
+        for name,value in form.cleaned_data.items():
+            if value is None or value=='':continue
+            field=form.fields[name]
+            label=dict(getattr(field,'choices',[])).get(str(value),value)
+            if hasattr(label,'strftime'):label=label.strftime('%d/%m/%Y')
+            chip_query=query.copy();chip_query.pop(name,None)
+            chips.append({'name':field.label,'value':label,'query':chip_query.urlencode()})
+        if request.GET.get('company'):
+            selected=Company.objects.get(workspace=workspace,pk=request.GET['company'])
+            chip_query=query.copy();chip_query.pop('company',None)
+            chips.insert(0,{'name':'Empresa','value':selected.display_name,'query':chip_query.urlencode()})
+    return render(request,'portal/fiscal_documents.html',dict(form=form,page=paginate(request,qs,25),companies=operational_companies(workspace),query_string=query.urlencode(),missing_index=missing,item_search=bool(item_q),
+        filter_groups=groups,advanced_count=advanced_count,advanced_open=advanced_count or any(form[name].errors for name in advanced_names),filter_chips=chips))
 
 
 @login_required

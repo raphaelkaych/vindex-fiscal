@@ -9,8 +9,10 @@ from .analytics_views import indicators
 from .recovery_views import RecoveryView
 from .account_views import account_delete
 from . import document_search_views
+from .help_views import tutorial
 from django.contrib.auth import views as auth_views
 urlpatterns=[
+    path('tutorial/',tutorial,name='tutorial'),
     path('saude/',views.health,name='health'),
     path('recuperar-senha/',RecoveryView.as_view(),name='password_reset'),
     path('recuperar-senha/enviado/',auth_views.PasswordResetDoneView.as_view(template_name='portal/recovery.html'),name='password_reset_done'),

@@ -18,6 +18,10 @@ register.filter('cnpj',format_cnpj)
 @register.simple_tag
 def icon(name):
     shapes={
+        'book':'<path d="M12 6c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V5c-4-1-7-1-10 1v15M6 9h3M6 13h3M15 9h3M15 13h3"/>',
+        'filter':'<path d="M4 7h16M7 12h10M10 17h4"/><circle cx="8" cy="7" r="2"/><circle cx="15" cy="12" r="2"/>',
+        'chevron':'<path d="m6 9 6 6 6-6"/>',
+        'close':'<path d="m6 6 12 12M6 18 18 6"/>',
         'truck':'<path d="M3 5h11v12H3zM14 9h4l3 4v4h-7M7 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4M18 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>',
         'chart':'<path d="M4 3v18h17M8 16v-4M13 16V7M18 16v-7"/>',
         'layers':'<path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/>',

@@ -1,5 +1,7 @@
 # Vindex Fiscal — plataforma local e API própria
 
+**Tutorial e filtros:** [guia de uso e refinamento visual](docs/TUTORIAL-E-REFINAMENTO-DE-FILTROS.md). Acesse **Como usar o Vindex** no menu lateral. Documentos consolidados tem pesquisa principal, refinamentos agrupados e filtros aplicados removíveis; Indicadores tem recortes organizados e atalhos de período.
+
 **Verificações e preparação de 23/10:** [pesquisa avançada, produtos e Excel](docs/PESQUISA-FISCAL-E-EXCEL.md) e [instalação futura Linux/PM2 com SQLite persistente, backups e HTTPS](docs/LINUX-PM2.md). O índice é preenchido localmente, sem repetir consultas fiscais. O perfil de produção fica em `config.production`; nenhum deploy foi executado. Resultados de uma recuperação por chave não comprovam desbloqueio da distribuição sequencial: confira cada operação e seu horário no painel privado.
 
 **Atualização de 23/10:** [recuperação pontual de NF-e por chave e exclusão de conta](docs/RECUPERACAO-POR-CHAVE-E-EXCLUSAO.md). O cliente pode excluir seu acesso em **Minha conta → Excluir minha conta**, com confirmação de senha e dos efeitos. A recuperação excepcional consulta referências comprovadas em CT-e, respeitando bloqueio e quota do CNPJ. Consulta pontual aceita não comprova normalização da distribuição sequencial.
