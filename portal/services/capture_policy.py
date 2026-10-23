@@ -10,3 +10,10 @@ def idle_interval():
 
 def page_interval():
     return timedelta(seconds=10)
+
+
+def consumption_interval(failure_count):
+    # Rejeição persistente não deve provocar novas tentativas a cada hora.
+    # Nunca reduz a política configurada nem representa prazo oficial adicional.
+    factor = 2 ** min(max(0, (failure_count - 1) // 3), 4)
+    return max(idle_interval(), min(idle_interval() * factor, timedelta(hours=24)))

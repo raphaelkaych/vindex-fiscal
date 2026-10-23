@@ -120,10 +120,13 @@ def identity_context(company):
     yield context
 
 
-def distribution_request(cnpj, environment, last_nsu, uf_author=''):
+def distribution_request(cnpj, environment, last_nsu, uf_author='', *, query_kind='distNSU'):
     if environment not in ENDPOINTS or not re.fullmatch(r'[0-9A-Z]{12}[0-9]{2}', cnpj):
         raise SefazError('Ambiente ou CNPJ inválido para a consulta oficial.')
-    if not re.fullmatch(r'[0-9]{15}', last_nsu):
+    if query_kind == 'consChNFe':
+        from .sefaz_key_recovery import validate_key
+        validate_key(last_nsu)
+    elif not re.fullmatch(r'[0-9]{15}', last_nsu):
         raise SefazError('O cursor de distribuição deve conter 15 dígitos.')
     envelope = XML.Element(f'{{{SOAP_NS}}}Envelope', nsmap={'s': SOAP_NS})
     body = XML.SubElement(envelope, f'{{{SOAP_NS}}}Body')
@@ -136,8 +139,11 @@ def distribution_request(cnpj, environment, last_nsu, uf_author=''):
             raise SefazError('UF do autor inválida.')
         XML.SubElement(request, f'{{{NFE_NS}}}cUFAutor').text = uf_author
     XML.SubElement(request, f'{{{NFE_NS}}}CNPJ').text = cnpj
-    query = XML.SubElement(request, f'{{{NFE_NS}}}distNSU')
-    XML.SubElement(query, f'{{{NFE_NS}}}ultNSU').text = last_nsu
+    if query_kind not in {'distNSU', 'consNSU', 'consChNFe'}:
+        raise SefazError('Modalidade de consulta oficial inválida.')
+    query = XML.SubElement(request, f'{{{NFE_NS}}}{query_kind}')
+    field = {'distNSU': 'ultNSU', 'consNSU': 'NSU', 'consChNFe': 'chNFe'}[query_kind]
+    XML.SubElement(query, f'{{{NFE_NS}}}{field}').text = last_nsu
     return XML.tostring(envelope, encoding='utf-8', xml_declaration=True)
 
 
@@ -187,16 +193,25 @@ class SefazTransport:
         server_context()
 
     def fetch(self, company, environment, last_nsu):
+        return self._fetch(company, environment, last_nsu, 'distNSU')
+
+    def fetch_nsu(self, company, environment, nsu):
+        return self._fetch(company, environment, nsu, 'consNSU')
+
+    def fetch_key(self, company, environment, access_key):
+        return self._fetch(company, environment, access_key, 'consChNFe')
+
+    def _fetch(self, company, environment, last_nsu, query_kind):
         from portal.services.sefaz_schema import validate_message
         config = getattr(company, 'capture_config', None)
         request = distribution_request(company.cnpj, environment, last_nsu,
-                                       getattr(config, 'uf_author', ''))
+                                       getattr(config, 'uf_author', ''), query_kind=query_kind)
         host, path = ENDPOINTS[environment]
         validate_message(request, 'distDFeInt_v1.01.xsd', 'distDFeInt')
         response = official_post(company, host, path,
                                  DISTRIBUTION_NS + '/nfeDistDFeInteresse', request)
         return response
 
-    def validate_response(self, response):
+    def validate_response(self, response, *, query_kind='distNSU'):
         from portal.services.sefaz_schema import validate_message
-        validate_message(response, 'retDistDFeInt_v1.01.xsd', 'retDistDFeInt')
+        validate_message(response, 'retDistDFeInt_v1.01.xsd', 'retDistDFeInt', query_kind=query_kind)

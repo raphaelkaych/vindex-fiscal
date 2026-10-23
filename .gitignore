@@ -30,6 +30,8 @@ tmp/
 *.bak
 *.vfx
 *.vfx2
+*.vdb
+exports/
 *.log
 *.crt
 *.cer

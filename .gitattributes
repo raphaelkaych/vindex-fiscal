@@ -1,0 +1,4 @@
+*.sh text eol=lf
+*.py text
+*.js text
+*.yml text eol=lf

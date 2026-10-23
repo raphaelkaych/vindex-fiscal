@@ -18,9 +18,12 @@ class EncryptedWriter:
         token=self.cipher.encrypt(self.identifier+struct.pack('!Q',self.index)+kind+data)
         self.file.write(struct.pack('!I',len(token)));self.file.write(token);self.index+=1
     def write(self,text):
-        data=text.encode('utf-8');self.digest.update(data);self.buffer+=data
-        while len(self.buffer)>=CHUNK:self.frame(b'D',self.buffer[:CHUNK]);self.buffer=self.buffer[CHUNK:]
+        self.write_bytes(text.encode('utf-8'))
         return len(text)
+    def write_bytes(self,data):
+        self.digest.update(data);self.buffer+=data
+        while len(self.buffer)>=CHUNK:self.frame(b'D',self.buffer[:CHUNK]);self.buffer=self.buffer[CHUNK:]
+        return len(data)
     def flush(self):self.file.flush()
     def finish(self):
         if self.buffer:self.frame(b'D',self.buffer);self.buffer=b''

@@ -150,7 +150,7 @@ def _document(node):
     return DistributionDocument(kind, nsu, schema, hashlib.sha256(payload).hexdigest(), access_key, event_type, text)
 
 
-def parse_distribution(payload, environment='2'):
+def parse_distribution(payload, environment='2', *, query_kind='distNSU', requested_nsu=None, requested_key=None):
     """Lê retorno direto ou envelope SOAP. Não valida assinatura nem XSD completo."""
     if environment not in {'1', '2'}:
         raise SefazError('Ambiente SEFAZ inválido.')
@@ -167,10 +167,12 @@ def parse_distribution(payload, environment='2'):
     status = value('cStat')
     if not re.fullmatch(r'[0-9]{3}', status):
         raise SefazError('O retorno contém uma situação de processamento inválida.')
-    required = status in {'137', '138'}
+    required = status in {'137', '138'} and query_kind != 'consChNFe'
     last = normalize_nsu(value('ultNSU'), required=required)
     maximum = normalize_nsu(value('maxNSU'), required=required)
-    if required and last and maximum and int(last) > int(maximum):
+    if query_kind not in {'distNSU', 'consNSU', 'consChNFe'}:
+        raise SefazError('Modalidade de consulta de distribuição inválida.')
+    if query_kind == 'distNSU' and required and last and maximum and int(last) > int(maximum):
         raise SefazError('O último NSU do retorno supera o NSU máximo.')
     try:
         responded_at = parse_datetime(value('dhResp'))
@@ -196,7 +198,15 @@ def parse_distribution(payload, environment='2'):
     known = [doc.nsu for doc in documents if doc.nsu]
     if len(set(known)) != len(known) or known != sorted(known):
         raise SefazError('O retorno repete NSU ou apresenta sequência fora de ordem.')
-    if last and any(int(nsu) > int(last) for nsu in known):
+    if query_kind == 'consNSU' and status == '138':
+        expected = normalize_nsu(requested_nsu)
+        if len(documents) != 1 or documents[0].nsu != expected:
+            raise SefazError('A recuperação pontual não corresponde ao NSU solicitado.')
+    if query_kind == 'consChNFe' and status == '138':
+        if (len(documents) != 1 or documents[0].access_key != requested_key
+                or documents[0].kind not in {'invoice', 'summary'}):
+            raise SefazError('A recuperação por chave não corresponde à NF-e solicitada.')
+    if query_kind == 'distNSU' and last and any(int(nsu) > int(last) for nsu in known):
         raise SefazError('O NSU de um documento supera o cursor do retorno.')
     return DistributionResponse(environment, status, last, maximum, responded_at, tuple(documents), value('xMotivo')[:500])
 

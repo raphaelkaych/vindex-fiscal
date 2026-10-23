@@ -44,6 +44,7 @@ Transfira o backup cifrado por canal privado e a chave por canal separado; não 
 ```sh
 docker compose -f deploy/compose.yaml run --rm -v /caminho/privado:/backup:ro web python manage.py migrar_dados_protegidos --importar --arquivo /backup/migracao.vfx --confirmar-banco-vazio
 docker compose -f deploy/compose.yaml run --rm web python manage.py conferir_dados
+docker compose -f deploy/compose.yaml run --rm web python manage.py indexar_documentos
 ```
 
 Novas exportações usam VFX2: JSONL cifrado em blocos autenticados, com identificação, ordem e verificação integral antes da carga. Datas preservam microssegundos para não reduzir esperas fiscais. Não há a antiga limitação global de 512 MB para esse formato; o consumo é por registro/bloco, mas o volume real precisa de ensaio de desempenho e espaço temporário privado. Backups legados continuam sujeitos ao limite antigo.

@@ -1,5 +1,6 @@
 """Verificação de configuração, sem imprimir segredos nem consultar o fisco."""
 import json
+from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand,CommandError
 from portal.services.capture_runtime import capture_runtime_status
@@ -15,7 +16,10 @@ class Command(BaseCommand):
         checks={
             'DEBUG desativado':not settings.DEBUG,
             'Domínio explícito, sem curingas ou exemplos':bool(hosts) and '*' not in hosts and any('.' in h and h not in {'127.0.0.1','localhost','[::1]'} and not any(x in h for x in ['example','seu-dominio','testserver']) for h in hosts),
-            'PostgreSQL configurado':settings.DATABASES['default']['ENGINE'].endswith('postgresql'),
+            'Banco persistente configurado':settings.DATABASES['default']['ENGINE'].endswith('postgresql') or (
+                Path(settings.DATABASES['default']['NAME']).is_absolute() and
+                not Path(settings.DATABASES['default']['NAME']).resolve().is_relative_to(settings.BASE_DIR.resolve()) and
+                'journal_mode=WAL' in settings.DATABASES['default']['OPTIONS'].get('init_command','')),
             'Cache compartilhado Redis configurado':'redis' in settings.CACHES['default']['BACKEND'].lower(),
             'HTTPS e cookies seguros':settings.SECURE_SSL_REDIRECT and settings.SESSION_COOKIE_SECURE and settings.CSRF_COOKIE_SECURE,
             'Origens CSRF HTTPS explícitas':bool(settings.CSRF_TRUSTED_ORIGINS) and all(s.startswith('https://') and '*' not in s for s in settings.CSRF_TRUSTED_ORIGINS),
@@ -23,7 +27,7 @@ class Command(BaseCommand):
             'Cadastro sujeito a aprovação ou fechado':settings.REGISTRATION_MODE in {'approval','closed'},
             'Processo de captura com sinal recente':capture_runtime_status()['active'],
         }
-        result={'configuration_complete':all(checks.values()),'checks':checks,'external_validation_required':['DNS/HTTPS público e proxy','Conexão PostgreSQL/Redis/SMTP','Backup privado, restauração e preservação da chave dos A1','Reinício supervisionado e monitoramento','Teste de carga e segunda empresa real com nova emissão']}
+        result={'configuration_complete':all(checks.values()),'checks':checks,'external_validation_required':['DNS/HTTPS público e proxy','Conexão ao banco/Redis/SMTP; disco local e WAL se SQLite','Backup privado, restauração e preservação da chave dos A1','Reinício supervisionado e monitoramento','Teste de carga e segunda empresa real com nova emissão']}
         if options['json']:self.stdout.write(json.dumps(result,ensure_ascii=False,indent=2))
         else:
             for name,passed in checks.items():self.stdout.write(('OK: ' if passed else 'PENDENTE: ')+name)

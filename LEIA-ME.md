@@ -1,5 +1,9 @@
 # Vindex Fiscal — plataforma local e API própria
 
+**Verificações e preparação de 23/10:** [pesquisa avançada, produtos e Excel](docs/PESQUISA-FISCAL-E-EXCEL.md) e [instalação futura Linux/PM2 com SQLite persistente, backups e HTTPS](docs/LINUX-PM2.md). O índice é preenchido localmente, sem repetir consultas fiscais. O perfil de produção fica em `config.production`; nenhum deploy foi executado. Resultados de uma recuperação por chave não comprovam desbloqueio da distribuição sequencial: confira cada operação e seu horário no painel privado.
+
+**Atualização de 23/10:** [recuperação pontual de NF-e por chave e exclusão de conta](docs/RECUPERACAO-POR-CHAVE-E-EXCLUSAO.md). O cliente pode excluir seu acesso em **Minha conta → Excluir minha conta**, com confirmação de senha e dos efeitos. A recuperação excepcional consulta referências comprovadas em CT-e, respeitando bloqueio e quota do CNPJ. Consulta pontual aceita não comprova normalização da distribuição sequencial.
+
 **Transportes:** nova área **Transportes · CT-e**, com filtros, detalhes, XML original e DACTE gerado localmente. Inclui proteção do QR contra marcas d'água e os refinamentos anteriores do PDF de NFS-e. Veja [uso, testes e limites de CT-e/DACTE](docs/AREA-CTE-E-DACTE.md).
 
 **Notas de serviço:** nova área **Notas de serviço · NFS-e**, com filtros, detalhes, XML original e PDF local baseado no DANFSe nacional. Parciais continuam como conferência. Veja [uso, conferência e limites do PDF](docs/AREA-NFSE-E-PDF.md).
@@ -77,7 +81,7 @@ Para visualizar a mudança, inicie o projeto normalmente com `py iniciar.py` e a
 | Gestão master | /gestao/, permissão própria, supervisão por URL em leitura, controles separados de conta/API/captura e auditoria |
 | Documentos distribuídos | Resumos, XMLs completos, eventos e resumos de eventos separados; downloads privados e histórico das respostas oficiais |
 | Ciência da Emissão | Envio somente após autorização explícita por resumo; não confirma a operação nem é enviado pelo worker |
-| Exportação | CSV de notas e previsões, respeitando os filtros e o acesso do usuário |
+| Exportação | CSV de notas/previsões e Excel de documentos, itens e agrupamentos, respeitando filtros e acesso do usuário |
 | Histórico | Registro das principais operações de cadastro, importação e certificados |
 
 O painel de cada empresa é vinculado ao **CNPJ**, e o certificado é uma credencial renovável daquela empresa. Trocar ou remover o certificado não apaga as notas.

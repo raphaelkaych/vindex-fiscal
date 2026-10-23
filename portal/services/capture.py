@@ -5,7 +5,7 @@ permite emitir eventos fiscais; manifestação tem autorização própria.
 """
 import uuid
 from datetime import timedelta
-from .capture_policy import idle_interval
+from .capture_policy import idle_interval, consumption_interval
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -163,14 +163,16 @@ def _recover_orphan(stream, now=None):
             lease_token=None, lease_until=None, next_attempt_at=Case(
                 When(next_attempt_at__gt=safe_at, then=F('next_attempt_at')),
                 default=Value(safe_at), output_field=DateTimeField()),
+            blocked_until=Case(When(blocked_until__gt=safe_at, then=F('blocked_until')),
+                default=Value(safe_at), output_field=DateTimeField()),
             failure_count=F('failure_count') + 1, last_error=message)
     stream.refresh_from_db()
     if not recovered:
         return False
     # Uma consulta interrompida não se transforma numa resposta oficial. Apenas
     # evidências já gravadas no XML privado permitem preencher cStat/xMotivo.
-    interrupted = SefazConsultation.objects.filter(state__company__cnpj=stream.cnpj,
-        state__environment=stream.environment, state__source='sefaz',
+    from .sefaz_recovery import consultations_for_stream
+    interrupted = consultations_for_stream(stream).filter(
         completed_at__isnull=True, requested_at__gte=attempt_at,
         requested_at__lte=attempt_at + timedelta(seconds=LEASE_SECONDS))
     for consultation in interrupted:
@@ -202,6 +204,7 @@ def _claim(stream):
     token = uuid.uuid4()
     claimed = SefazDistributionStream.objects.filter(pk=stream.pk).filter(
         Q(lease_until__isnull=True) | Q(lease_until__lte=now)).filter(
+        Q(blocked_until__isnull=True) | Q(blocked_until__lte=now)).filter(
         Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now)).update(
             lease_token=token, lease_until=now + timedelta(seconds=LEASE_SECONDS),
             last_attempt_at=now)
@@ -219,15 +222,7 @@ def _counts(documents):
     return result
 
 
-@transaction.atomic
-def _store_response(stream, token, response):
-    now = timezone.now()
-    current = SefazDistributionStream.objects.select_for_update().get(pk=stream.pk)
-    if current.lease_token != token or not current.lease_until or current.lease_until <= now:
-        raise SefazBusy('A execução perdeu sua reserva. O cursor não foi alterado.')
-    accepted = response.status in {'137', '138'}
-    if accepted and int(response.last_nsu) < int(current.last_nsu):
-        raise SefazError('O retorno retrocede o NSU. O progresso foi preservado e exige revisão.')
+def _store_documents(current, response):
     for doc in response.documents:
         existing = current.documents.filter(nsu=doc.nsu).first() if doc.nsu else None
         if existing is not None and existing.content_hash != doc.content_hash:
@@ -241,6 +236,21 @@ def _store_response(stream, token, response):
         if not stored.nsu and doc.nsu:
             stored.nsu = doc.nsu
             stored.save(update_fields=['nsu'])
+
+
+@transaction.atomic
+def _store_response(stream, token, response, *, requested_nsu=None, resume_from_nsu=''):
+    now = timezone.now()
+    current = SefazDistributionStream.objects.select_for_update().get(pk=stream.pk)
+    if current.lease_token != token or not current.lease_until or current.lease_until <= now:
+        raise SefazBusy('A execução perdeu sua reserva. O cursor não foi alterado.')
+    accepted = response.status in {'137', '138'}
+    if accepted and int(response.last_nsu) < int(requested_nsu or current.last_nsu):
+        raise SefazError('O retorno retrocede o NSU. O progresso foi preservado e exige revisão.')
+    _store_documents(current, response)
+    if accepted and resume_from_nsu:
+        from .sefaz_recovery import record_resume_gap
+        record_resume_gap(current, requested_nsu, resume_from_nsu)
     current.reported_nsu = response.last_nsu
     current.last_status = response.status
     current.last_reason = response.reason
@@ -259,7 +269,9 @@ def _store_response(stream, token, response):
         # Esperar pela referência mais tardia, com margem, evita antecipar a
         # hora mínima e prolongar um bloqueio 656 por diferença de relógios.
         reference = max(now, response.responded_at) if response.responded_at else now
-        current.next_attempt_at = reference + idle_interval()
+        current.next_attempt_at = reference + (consumption_interval(current.failure_count) if response.status == '656' else idle_interval())
+        if response.status == '656':
+            current.blocked_until = current.next_attempt_at
     elif not accepted:
         current.next_attempt_at = now + timedelta(seconds=min(3600, 60 * 2 ** min(current.failure_count - 1, 6)))
     else:
@@ -393,9 +405,16 @@ def _fail(stream, token, state, consultation, config, error, phase='processing')
             evidence = {'last_status': metadata['status'], 'last_reason': metadata['reason'],
                 'last_response_at': timezone.now(), 'official_response_at': metadata['responded_at'],
                 'reported_nsu': metadata['last_nsu']}
+            if consultation.query_kind == 'consChNFe':
+                evidence.pop('reported_nsu')
+        reference = max(timezone.now(), metadata.get('responded_at') or timezone.now())
+        safe_at = reference + (consumption_interval(fresh.failure_count + 1) if metadata.get('status') == '656' else timedelta(seconds=delay))
         SefazDistributionStream.objects.filter(pk=stream.pk, lease_token=token).update(**evidence,
             lease_token=None, lease_until=None, failure_count=F('failure_count') + 1,
-            next_attempt_at=timezone.now() + timedelta(seconds=delay), last_error=safe)
+            next_attempt_at=Case(When(next_attempt_at__gt=safe_at,then=F('next_attempt_at')),
+                default=Value(safe_at),output_field=DateTimeField()),
+            blocked_until=Case(When(blocked_until__gt=safe_at,then=F('blocked_until')),
+                default=Value(safe_at),output_field=DateTimeField()),last_error=safe)
     stream.refresh_from_db()
     SefazSyncState.objects.filter(pk=state.pk).update(last_error=safe,
         next_attempt_at=stream.next_attempt_at, failure_count=stream.failure_count,
@@ -426,24 +445,39 @@ def recover_received_response(company,config,stream):
     if current.source!='sefaz':return False
     now=timezone.now()
     if current.lease_until and current.lease_until>now:return False
-    latest=SefazConsultation.objects.filter(state__company__cnpj=current.cnpj,
-        state__environment=current.environment,state__source=current.source).order_by('-requested_at','-pk').first()
-    if not latest or not latest.error or latest.status not in {'137','138'} or not latest.response_xml or latest.requested_nsu!=current.last_nsu:return False
+    from .sefaz_recovery import consultations_for_stream
+    latest=consultations_for_stream(current).order_by('-requested_at','-pk').first()
+    if not latest or not latest.error or latest.status not in {'137','138'} or not latest.response_xml:return False
+    if latest.query_kind == 'distNSU' and latest.requested_nsu != current.last_nsu and latest.resume_from_nsu != current.last_nsu:return False
+    if latest.query_kind == 'consNSU' and (not latest.recovery_id or latest.recovery.completed_at or latest.recovery.next_nsu != latest.requested_nsu):return False
+    if latest.query_kind == 'consChNFe' and (not latest.key_recovery_id or latest.key_recovery.completed_at or latest.key_recovery.access_key != latest.requested_key):return False
     from .sefaz_transport import SefazTransport
     payload=latest.response_xml.encode('utf-8')
-    SefazTransport().validate_response(payload)
-    response=parse_distribution(payload,current.environment)
-    if response.last_nsu<=current.last_nsu:return False
+    SefazTransport().validate_response(payload, query_kind=latest.query_kind)
+    response=parse_distribution(payload,current.environment,query_kind=latest.query_kind,requested_nsu=latest.requested_nsu,requested_key=latest.requested_key)
+    if latest.query_kind == 'distNSU' and response.last_nsu<=current.last_nsu:return False
     previous_wait=current.next_attempt_at
     token=uuid.uuid4();current.lease_token=token;current.lease_until=now+timedelta(seconds=LEASE_SECONDS)
     current.save(update_fields=['lease_token','lease_until'])
-    current=_store_response(current,token,response)
+    if latest.query_kind == 'consChNFe':
+        from .sefaz_key_recovery import store_key_response
+        current=store_key_response(current,token,response,latest)
+    elif latest.query_kind == 'consNSU':
+        from .sefaz_recovery import store_recovery_response
+        current=store_recovery_response(current,token,response,latest)
+    else:
+        current=_store_response(current,token,response,requested_nsu=latest.requested_nsu,resume_from_nsu=latest.resume_from_nsu)
     if previous_wait and (not current.next_attempt_at or current.next_attempt_at<previous_wait):
         current.next_attempt_at=previous_wait;current.save(update_fields=['next_attempt_at'])
     counts=_counts(response.documents)
+    state, imported = _fanout(current, company, config)
+    counts['imported'] = imported
+    state.last_counts = counts
+    state.save(update_fields=['last_counts','updated_at'])
     latest.error_code='recovered_local';latest.error='';latest.counts=counts
     latest.save(update_fields=['error_code','error','counts'])
     AuditEntry.objects.create(workspace=company.workspace,description='Resposta oficial já recebida recuperada localmente, sem nova consulta nem redução do intervalo.')
+    _config_error(config,'','')
     stream.refresh_from_db()
     return True
 
@@ -482,8 +516,13 @@ def run_company(workspace, company_id, transport=None):
     if stream.last_status in {'137', '138'} and not stream.last_error:
         _config_error(config, '', '')
     now = timezone.now()
-    if ((stream.next_attempt_at and stream.next_attempt_at > now)
-            or (stream.lease_until and stream.lease_until > now)):
+    from .sefaz_recovery import blocked_until, due_recovery, claim_recovery, resume_cursor, store_recovery_response
+    from .sefaz_key_recovery import due_key_recovery, claim_key_recovery, store_key_response
+    key_recovery = due_key_recovery(stream, company, now)
+    recovery = due_recovery(stream, now) if not key_recovery and stream.next_attempt_at and stream.next_attempt_at > now else None
+    block = blocked_until(stream)
+    if ((block and block > now) or (stream.lease_until and stream.lease_until > now)
+            or (stream.next_attempt_at and stream.next_attempt_at > now and recovery is None and key_recovery is None)):
         raise SefazBusy('A consulta deste CNPJ está em andamento ou aguardando o intervalo permitido pela SEFAZ.')
     try:
         transport.ensure_configured(company, config.environment)
@@ -494,15 +533,45 @@ def run_company(workspace, company_id, transport=None):
         message = 'Não foi possível validar o transporte e o certificado. Nenhuma consulta foi iniciada.'
         _config_error(config, message, 'configuration')
         raise SefazNotConfigured(message) from None
-    token = _claim(stream)
+    if key_recovery is not None:
+        token, key_recovery = claim_key_recovery(stream, key_recovery, company)
+        if token is None:
+            raise SefazBusy('A recuperação por chave aguarda o limite de consultas pontuais.')
+        query_kind = 'consChNFe'
+        requested_nsu = ''
+        resume_from_nsu = ''
+    elif recovery is not None:
+        token, recovery = claim_recovery(stream, recovery)
+        if token is None:
+            raise SefazBusy('A recuperação aguarda o limite de consultas pontuais.')
+        query_kind = 'consNSU'
+        requested_nsu = recovery.next_nsu
+        resume_from_nsu = ''
+    else:
+        token = _claim(stream)
+        query_kind = 'distNSU'
+        requested_nsu = stream.last_nsu
+        resume_from_nsu = ''
     now = timezone.now()
     state.last_attempt_at = now
     state.save(update_fields=['last_attempt_at', 'updated_at'])
-    consultation = SefazConsultation.objects.create(state=state,
-        requested_at=now, requested_nsu=stream.last_nsu)
+    consultation = SefazConsultation.objects.create(state=state, stream=stream,
+        requested_at=now, requested_nsu=requested_nsu, query_kind=query_kind, recovery=recovery,
+        key_recovery=key_recovery, requested_key=key_recovery.access_key if key_recovery else '')
     phase='transport'
     try:
-        payload = transport.fetch(company, config.environment, stream.last_nsu)
+        if query_kind == 'distNSU':
+            requested_nsu = resume_cursor(stream, exclude_consultation_id=consultation.pk)
+            if requested_nsu != stream.last_nsu:
+                resume_from_nsu = stream.last_nsu
+                consultation.requested_nsu = requested_nsu
+                consultation.resume_from_nsu = resume_from_nsu
+                consultation.save(update_fields=['requested_nsu', 'resume_from_nsu'])
+            payload = transport.fetch(company, config.environment, requested_nsu)
+        elif query_kind == 'consChNFe':
+            payload = transport.fetch_key(company, config.environment, consultation.requested_key)
+        else:
+            payload = transport.fetch_nsu(company, config.environment, requested_nsu)
         if not isinstance(payload, bytes) or len(payload) > MAX_RESPONSE_BYTES:
             raise SefazError('O retorno excede o limite local ou não contém bytes XML.')
         # Evidência privada gravada antes de qualquer parser/processamento. Não
@@ -512,11 +581,16 @@ def run_company(workspace, company_id, transport=None):
         validate_response = getattr(transport, 'validate_response', None)
         phase='schema'
         if validate_response is not None:
-            validate_response(payload)
+            if query_kind == 'consChNFe':
+                validate_response(payload,query_kind=query_kind)
+            else:
+                validate_response(payload)
         phase='parse'
-        response = parse_distribution(payload, config.environment)
+        response = parse_distribution(payload, config.environment,query_kind=query_kind,requested_nsu=requested_nsu,requested_key=consultation.requested_key)
         phase='storage'
-        stream = _store_response(stream, token, response)
+        stream = (store_key_response(stream, token, response, consultation) if query_kind == 'consChNFe'
+            else store_recovery_response(stream, token, response, consultation) if query_kind == 'consNSU'
+            else _store_response(stream, token, response,requested_nsu=requested_nsu,resume_from_nsu=resume_from_nsu))
         # Resposta/cursor são duráveis antes da importação. Reiniciar o processo
         # entre estes pontos reentrega a caixa de entrada sem pedir novamente.
         counts = _counts(response.documents)
@@ -542,9 +616,13 @@ def run_company(workspace, company_id, transport=None):
             _config_error(config, message, 'sefaz_' + response.status)
             raise SefazRejected(message)
         AuditEntry.objects.create(workspace=workspace, description=(
-            f'{"Distribuição oficial SEFAZ" if real else "Teste de distribuição"}: '
+            f'{"Distribuição oficial SEFAZ" if real else "Teste de distribuição"} ({query_kind}): '
             f'{len(response.documents)} documento(s), {imported} NF-e nova(s), '
             f'empresa {company.display_name}')[:250])
+        if resume_from_nsu:
+            AuditEntry.objects.create(workspace=workspace, description=(
+                f'Retomada após 656 no NSU oficial {requested_nsu}; intervalo desde {resume_from_nsu} '
+                'registrado para recuperação pontual. Não comprova completude do histórico.')[:250])
         return state
     except SefazRejected:
         raise
@@ -584,6 +662,11 @@ def run_due(limit=20, company_id=None):
             now = timezone.now()
             waiting = stream and ((stream.next_attempt_at and stream.next_attempt_at > now)
                 or (stream.lease_until and stream.lease_until > now))
+            if waiting:
+                from .sefaz_recovery import due_recovery
+                from .sefaz_key_recovery import due_key_recovery
+                if (due_recovery(stream, now) is not None or due_key_recovery(stream, config.company, now) is not None) and not (stream.lease_until and stream.lease_until > now):
+                    waiting = False
             if waiting:
                 state, _ = SefazSyncState.objects.get_or_create(company=config.company,
                     environment=config.environment, source='sefaz')

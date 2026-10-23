@@ -1,0 +1,58 @@
+name: Verificações Linux e PM2
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependências e SQLite privado
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential tcl-dev
+          VINDEX_SQLITE_PREFIX="$RUNNER_TEMP/sqlite" bash deploy/install-sqlite.sh
+          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/sqlite/lib" >> "$GITHUB_ENV"
+          echo "VINDEX_SQLITE_LIB_DIR=$RUNNER_TEMP/sqlite/lib" >> "$GITHUB_ENV"
+          python -m venv .venv
+          .venv/bin/pip install -r requirements-production.txt
+          .venv/bin/pip check
+          npm install -g pm2@6
+      - name: Ambiente isolado sem clientes ou certificados reais
+        run: |
+          .venv/bin/python - <<'PY'
+          import os,secrets
+          from pathlib import Path
+          from cryptography.fernet import Fernet
+          root=Path(os.environ['RUNNER_TEMP'])/'vindex'
+          for name in ['data','runtime','static','backup']: (root/name).mkdir(parents=True,exist_ok=True)
+          config=root/'ci.env'
+          config.write_text('\n'.join(['DJANGO_SECRET_KEY='+secrets.token_urlsafe(64),'CERTIFICATE_ENCRYPTION_KEY='+Fernet.generate_key().decode(),'DJANGO_DEBUG=0','DJANGO_ALLOWED_HOSTS=fiscal.ci.invalid,127.0.0.1','DJANGO_CSRF_TRUSTED_ORIGINS=https://fiscal.ci.invalid','VINDEX_TRUST_PROXY=1','VINDEX_SQLITE_PATH='+str(root/'data'/'ci.sqlite3'),'VINDEX_RUNTIME_DIR='+str(root/'runtime'),'VINDEX_STATIC_ROOT='+str(root/'static'),'VINDEX_BACKUP_DIR='+str(root/'backup'),'VINDEX_REDIS_URL=redis://127.0.0.1:6379/0']))
+          config.chmod(0o600)
+          (root/'test.env').write_text('\n'.join(config.read_text().splitlines()[:2]))
+          (root/'test.env').chmod(0o600)
+          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('VINDEX_ENV_FILE='+str(config)+'\nVINDEX_RUNTIME_DIR='+str(root/'runtime')+'\n')
+          PY
+      - name: Testes Django isolados
+        env:
+          VINDEX_ENV_FILE: ${{ runner.temp }}/vindex/test.env
+          VINDEX_RUNTIME_DIR: ''
+          DJANGO_DEBUG: '1'
+        run: .venv/bin/python manage.py test --noinput
+      - name: Build de produção e verificação PM2
+        env:
+          DJANGO_SETTINGS_MODULE: config.production
+        run: |
+          .venv/bin/python tools/prepare_release.py
+          bash tools/smoke-pm2.sh

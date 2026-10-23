@@ -31,7 +31,7 @@ class ContinuousCaptureTests(TestCase):
         import re
         payload=re.sub(rb'(\d{2}:\d{2}:\d{2})\.\d+',rb'\1',payload)
         attempt=SefazConsultation.objects.create(state=state,requested_at=timezone.now(),requested_nsu=stream.last_nsu,status='138',response_xml=payload.decode(),error='Falha sintética de armazenamento')
-        with patch('portal.services.sefaz_transport.official_post') as network:
+        with patch('portal.services.sefaz_transport.official_post') as network, patch('portal.services.sefaz_transport.load_identity'):
             self.assertTrue(recover_received_response(self.company,self.company.capture_config,stream))
         network.assert_not_called();stream.refresh_from_db();attempt.refresh_from_db()
         self.assertEqual(stream.last_nsu,'000000000000001');self.assertEqual(stream.next_attempt_at,wait)

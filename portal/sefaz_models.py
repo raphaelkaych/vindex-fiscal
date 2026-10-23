@@ -83,6 +83,7 @@ class SefazDistributionStream(models.Model):
     max_nsu = models.CharField(max_length=15, default='000000000000000')
     reported_nsu = models.CharField(max_length=15, blank=True)
     next_attempt_at = models.DateTimeField(null=True, blank=True)
+    blocked_until = models.DateTimeField(null=True, blank=True)
     lease_token = models.UUIDField(null=True, blank=True, editable=False)
     lease_until = models.DateTimeField(null=True, blank=True)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
@@ -118,11 +119,17 @@ class SefazStreamDocument(models.Model):
 
 
 class SefazConsultation(models.Model):
-    state = models.ForeignKey(SefazSyncState, on_delete=models.CASCADE, related_name='consultations')
+    state = models.ForeignKey(SefazSyncState, on_delete=models.SET_NULL, null=True, related_name='consultations')
+    stream = models.ForeignKey(SefazDistributionStream, on_delete=models.PROTECT, null=True, related_name='consultations')
     requested_at = models.DateTimeField()
     completed_at = models.DateTimeField(null=True, blank=True)
     official_response_at = models.DateTimeField(null=True, blank=True)
     requested_nsu = models.CharField(max_length=15)
+    query_kind = models.CharField(max_length=9, default='distNSU', db_default='distNSU', choices=[('distNSU', 'Distribuição'), ('consNSU', 'Recuperação por NSU'), ('consChNFe', 'Recuperação por chave')])
+    requested_key = models.CharField(max_length=44, blank=True, db_default='')
+    key_recovery = models.ForeignKey('SefazKeyRecovery', on_delete=models.PROTECT, null=True, blank=True, related_name='consultations')
+    resume_from_nsu = models.CharField(max_length=15, blank=True, db_default='')
+    recovery = models.ForeignKey('SefazNsuRecovery', on_delete=models.PROTECT, null=True, blank=True, related_name='consultations')
     reported_nsu = models.CharField(max_length=15, blank=True)
     max_nsu = models.CharField(max_length=15, blank=True)
     status = models.CharField(max_length=3, blank=True)
@@ -134,3 +141,37 @@ class SefazConsultation(models.Model):
 
     class Meta:
         ordering = ['-requested_at', '-pk']
+
+
+class SefazNsuRecovery(models.Model):
+    """Intervalo ainda não recebido; nunca se confunde com cursor de distribuição."""
+    stream = models.ForeignKey(SefazDistributionStream, on_delete=models.PROTECT, related_name='recoveries')
+    first_nsu = models.CharField(max_length=15)
+    last_nsu = models.CharField(max_length=15)
+    next_nsu = models.CharField(max_length=15)
+    recovered_count = models.PositiveIntegerField(default=0)
+    unavailable_count = models.PositiveIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['stream', 'first_nsu', 'last_nsu'], name='unique_sefaz_recovery_range')]
+
+
+class SefazKeyRecovery(models.Model):
+    """Consulta pontual motivada por referência em CT-e do próprio cliente."""
+    stream = models.ForeignKey(SefazDistributionStream, on_delete=models.PROTECT, related_name='key_recoveries')
+    company = models.ForeignKey('Company', on_delete=models.SET_NULL, null=True, related_name='nfe_key_recoveries')
+    evidence = models.ForeignKey('FiscalDocument', on_delete=models.SET_NULL, null=True, related_name='nfe_key_recoveries')
+    access_key = models.CharField(max_length=44)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=3, blank=True)
+    last_error = models.CharField(max_length=500, blank=True)
+    result = models.CharField(max_length=20, default='pending', choices=[('pending', 'Agendada'), ('xml', 'XML recebido'), ('summary', 'Somente resumo'), ('unavailable', 'Sem documento disponível'), ('rejected', 'Consulta rejeitada')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['stream', 'access_key'], name='unique_sefaz_recovery_key')]

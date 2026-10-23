@@ -12,6 +12,10 @@ Os bytes foram preservados, com duas exceções nos arquivos legados: `retEnvCon
 
 O número da Nota Técnica, a versão do pacote ZIP e a versão do XML são diferentes. A NT 2014.002 v1.40 utiliza `distDFeInt` com versão `1.01`. Os eventos de manifestação utilizam versão XML `1.00`.
 
+## Compatibilidade do retorno por chave
+
+Em 23/10/2026, o Ambiente Nacional `verAplic=1.7.8` devolveu uma consulta real `consChNFe` aceita, código 138, sem os elementos `ultNSU` e `maxNSU` do cabeçalho. O XSD publicado no pacote 1.04 exige ambos. O arquivo oficial permanece intacto. Para `consChNFe`, `sefaz_schema.py` compila uma variante em memória que permite omitir somente esses dois elementos; campos presentes continuam tipados e os demais requisitos do schema são mantidos. `distNSU` e `consNSU` continuam usando a cardinalidade original. Não são inseridos NSUs fictícios para validar o retorno. Ambiente, data/hora, chave, tipo e quantidade de documentos são conferidos separadamente. O retorno pontual não modifica o cursor da distribuição. Essa compatibilidade observada não é apresentada como alteração do pacote oficial.
+
 O schema de assinatura fixa RSA-SHA1, SHA1 e canonicalização C14N 1.0. Esses algoritmos pertencem ao protocolo oficial XMLDSig e não alteram as exigências de validação TLS do transporte. Uma validação XSD não comprova a autenticidade de uma assinatura nem o registro de um evento na SEFAZ.
 
 Fontes técnicas: [NT 2014.002 v1.40](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=uWO2d%2FgTuWg%3D), [NT 2020.001 v1.60](https://www.nfe.fazenda.gov.br/Portal/exibirArquivo.aspx?conteudo=%2BWTd7iuD21s%3D) e [relação oficial de schemas](https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w%3D).

@@ -1,0 +1,11 @@
+{% extends 'portal/base.html' %}{% load portal_tags %}
+{% block title %}Excluir minha conta{% endblock %}{% block breadcrumb %}Minha conta{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow blue">GERENCIAR MEU ACESSO</span><h1>Excluir minha conta</h1><p>Confira o que será removido antes de confirmar.</p></div><a class="button secondary" href="{% url 'profile' %}">Voltar para minha conta</a></div>
+<section class="panel form-panel">
+<div class="notice warning" role="note">{% icon 'info' %}<span><strong>Esta ação é definitiva.</strong> Seu login, empresas, certificados A1, credenciais de API e arquivos privados serão removidos. A captura deste acesso será interrompida. Há {{ invoice_count }} NF-e e {{ fiscal_count }} NFS-e/CT-e vinculados à sua conta.</span></div>
+<p>Baixe antes os documentos que deseja guardar. A exclusão deste cliente não remove documentos de outros clientes, nem reinicia o NSU ou os intervalos do CNPJ.</p>
+<p class="footnote">As evidências técnicas de consultas e eventos fiscais, a auditoria e as filas compartilhadas do CNPJ são preservadas, separadas do login excluído. Backups existentes seguem a política de retenção da operação; este botão não apaga cópias de segurança. Contas administrativas exigem transferência da administração antes da exclusão.</p>
+<form method="post" class="stack-form">{% csrf_token %}{% include 'portal/fields.html' %}<div class="form-actions"><button class="button danger" type="submit">{% icon 'logout' %} Excluir minha conta e arquivos</button></div></form>
+</section>
+{% endblock %}

@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from .capture_forms import CaptureEnableForm, ScienceAuthorizationForm
 from .models import Company
-from .sefaz_models import SefazCaptureConfig, SefazDistributionStream, SefazDocument, SefazSyncState
+from .sefaz_models import SefazCaptureConfig, SefazDistributionStream, SefazDocument, SefazSyncState, SefazConsultation
 from .services.capture import configure_capture
 from .services.capture_runtime import capture_runtime_status
 from .services.sefaz import SefazError
@@ -31,9 +31,22 @@ def _shared_metadata(company,config):
     if not (company.is_active and company.workspace.access_status=='active' and config and config.read_authorized_at and certificate and not certificate.is_demo
             and certificate.valid_from<=now<certificate.valid_until
             and certificate.holder_cnpj[:8]==company.cnpj[:8]):return {}
-    return SefazDistributionStream.objects.filter(cnpj=company.cnpj,environment=config.environment,
-        source='sefaz').values('last_attempt_at','lease_until','next_attempt_at','last_status',
-            'last_reason','last_response_at','official_response_at','reported_nsu').first() or {}
+    stream = SefazDistributionStream.objects.filter(cnpj=company.cnpj,environment=config.environment,source='sefaz').first()
+    if stream is None:return {}
+    shared = {field:getattr(stream,field) for field in ('last_attempt_at','lease_until','next_attempt_at','last_status',
+        'last_reason','last_response_at','official_response_at','reported_nsu','blocked_until')}
+    jobs=list(stream.recoveries.order_by('first_nsu').values('first_nsu','last_nsu','next_nsu','recovered_count',
+        'unavailable_count','next_attempt_at','last_error','completed_at'))
+    shared['recoveries']=jobs
+    shared['pending_recovery']=any(not job['completed_at'] for job in jobs)
+    shared['recovery_unavailable']=any(job['unavailable_count'] for job in jobs)
+    from .services.sefaz_recovery import consultations_for_stream
+    history=consultations_for_stream(stream).order_by('-requested_at','-pk')
+    shared['last_query_kind']=history.values_list('query_kind',flat=True).first()
+    shared['last_distribution']=history.filter(query_kind='distNSU').values('status','reason','requested_at').first()
+    shared['key_recoveries']=list(stream.key_recoveries.filter(company=company).order_by('-created_at').values(
+        'access_key','next_attempt_at','last_status','last_error','result','completed_at')[:20])
+    return shared
 
 
 def _activity(company,config,state):
@@ -55,10 +68,11 @@ def _activity(company,config,state):
         or (last_success and config.last_checked_at and last_success>config.last_checked_at and not local_error)))
     history=latest_error if latest_error and last_success and latest_error['requested_at']<last_success else None
     imported=state.documents.filter(invoice__isnull=False).aggregate(at=Max('invoice__imported_at'))['at'] if state else None
+    next_attempt=max((d for d in [shared.get('next_attempt_at'),shared.get('blocked_until'),getattr(state,'next_attempt_at',None)] if d),default=None)
     return {'shared':shared,'last_attempt':last_attempt,'last_success':last_success,'last_import':imported,
         'official_error':official_error,'local_error':local_error,'config_error':'' if stale_config else config_error,
         'historical_error':history,'historical_config_error':config_error if stale_config else '',
-        'last_status':status,'waiting':bool((shared.get('next_attempt_at') or getattr(state,'next_attempt_at',None)) and (shared.get('next_attempt_at') or state.next_attempt_at)>timezone.now())}
+        'next_attempt':next_attempt,'last_status':status,'waiting':bool(next_attempt and next_attempt>timezone.now())}
 
 
 def _status(company, config, state, runtime=None,activity=None):
@@ -86,6 +100,12 @@ def _status(company, config, state, runtime=None,activity=None):
     has_error=(activity['config_error'] or activity['local_error'] or activity['official_error']) if activity is not None else (config.last_error or (state and state.last_error))
     if has_error:
         return 'Requer atenção', 'danger'
+    if shared.get('last_distribution',{} ) and shared['last_distribution']['status']=='656':
+        return 'Distribuição com 656 · recuperação pontual em acompanhamento', 'warning'
+    if shared.get('pending_recovery'):
+        return 'Ativa · recuperação do histórico pendente', 'warning'
+    if shared.get('recovery_unavailable'):
+        return 'Ativa · histórico com NSUs indisponíveis', 'warning'
     if not hasattr(company, 'certificate'):
         return 'Certificado necessário', 'warning'
     if company.certificate.state == 'expired':
@@ -108,7 +128,7 @@ def capture_list(request):
     for company in companies:
         config = getattr(company, 'capture_config', None)
         state = _state(company, config)
-        status, tone = _status(company, config, state, runtime)
+        status, tone = _status(company, config, state, runtime,_activity(company,config,state))
         rows.append({'company': company, 'config': config, 'state': state, 'status': status, 'tone': tone})
     return render(request, 'portal/capture_list.html', {'rows': rows, 'capture_runtime': runtime})
 

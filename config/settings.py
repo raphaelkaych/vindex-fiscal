@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(os.environ.get('VINDEX_ENV_FILE',BASE_DIR / '.env'))
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
 if len(SECRET_KEY) < 40:
     raise ImproperlyConfigured('Prepare o ambiente com: python iniciar.py --preparar')
@@ -15,7 +15,8 @@ MIDDLEWARE = ['django.middleware.security.SecurityMiddleware','django.contrib.se
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[BASE_DIR/'templates'],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages','portal.context.app_context']}}]
 WSGI_APPLICATION = 'config.wsgi.application'
-DATABASES = {'default':{'ENGINE':'django.db.backends.sqlite3','NAME':BASE_DIR/'dados.sqlite3','OPTIONS':{'timeout':30,'transaction_mode':'IMMEDIATE'}}}
+DATABASES = {'default':{'ENGINE':'django.db.backends.sqlite3','NAME':Path(os.environ.get('VINDEX_SQLITE_PATH',BASE_DIR/'dados.sqlite3')),'OPTIONS':{'timeout':30,'transaction_mode':'IMMEDIATE'}}}
+RUNTIME_DIR=Path(os.environ['VINDEX_RUNTIME_DIR']) if os.environ.get('VINDEX_RUNTIME_DIR') else None
 if os.environ.get('VINDEX_DB_ENGINE','sqlite') == 'postgresql':
     if not os.environ.get('PGDATABASE') or not os.environ.get('PGUSER'):
         raise ImproperlyConfigured('Configure PGDATABASE e PGUSER para PostgreSQL.')
@@ -33,7 +34,7 @@ USE_I18N=True
 USE_TZ=True
 STATIC_URL='/static/'
 STATICFILES_DIRS=[BASE_DIR/'static']
-STATIC_ROOT=BASE_DIR/'staticfiles'
+STATIC_ROOT=Path(os.environ.get('VINDEX_STATIC_ROOT',BASE_DIR/'staticfiles'))
 DEFAULT_AUTO_FIELD='django.db.models.BigAutoField'
 LOGIN_URL='login'
 MIDDLEWARE.insert(MIDDLEWARE.index('django.contrib.auth.middleware.AuthenticationMiddleware')+1,'portal.account_middleware.AccountStatusMiddleware')

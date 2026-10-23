@@ -1,5 +1,7 @@
 # Preparação para produção
 
+**Atualização de 23/10:** o perfil [Linux/PM2 e SQLite persistente](LINUX-PM2.md) complementa o roteiro Docker/PostgreSQL abaixo. Inclui ambiente separado, WAL, snapshot cifrado online, backup diário e reinício supervisionado. Escolha um único roteiro e mantenha apenas uma instalação consumidora ativa por CNPJ; não houve deploy público nesta entrega.
+
 Receita executável desta etapa: [IMPLANTACAO.md](IMPLANTACAO.md), com Docker Compose, web/captura separados, cadastro por aprovação, backup cifrado e validação de migração. Preserve a chave original dos A1. Não houve publicação nem homologação PostgreSQL real nesta máquina.
 
 A aplicação continua preparada para uso local. O transporte SEFAZ e o worker estão implementados, com consulta piloto real e importação de XML documentadas em [INTEGRACAO-SEFAZ.md](../INTEGRACAO-SEFAZ.md). PostgreSQL e Redis são configuráveis, mas não houve implantação pública nem validação desta instalação nesses serviços. DDA e operações bancárias continuam sem integração.

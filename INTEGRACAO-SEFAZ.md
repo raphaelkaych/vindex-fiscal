@@ -1,5 +1,11 @@
 # Captura oficial de NF-e — estado atual
 
+**Conferência final de 23/10:** o painel distingue a última operação da distribuição sequencial e a recuperação pontual. Mostra a próxima tentativa considerando a espera compartilhada e o bloqueio do CNPJ, sem alterar o agendamento por visualização. A investigação das entradas recentes usa as respostas já armazenadas; não há consultas extras de teste. Recuperar XML por chave conhecida é uma operação oficial sujeita à quota e ao bloqueio compartilhados; não substitui o avanço normal por NSU nem garante completude. [Pesquisa/Excel](docs/PESQUISA-FISCAL-E-EXCEL.md) e [produção Linux/PM2](docs/LINUX-PM2.md).
+
+**Atualização de 23/10:** [recuperação excepcional por chave e exclusão de conta](docs/RECUPERACAO-POR-CHAVE-E-EXCLUSAO.md). As consultas pontuais compartilham quota/bloqueio com a recuperação por NSU. Rejeição persistente aumenta a espera local; uma consulta pontual aceita não comprova normalização de `distNSU`. Excluir um cliente não apaga a fila nem a evidência técnica de consumo do CNPJ.
+
+**Correção de retomada (22/10):** [retomada após 656 e recuperação dos intervalos intermediários](docs/RETOMADA-SEFAZ-656.md). O NSU de uma rejeição íntegra pode orientar a próxima consulta permitida; o cursor só muda com resposta aceita e o intervalo ainda não recebido fica em fila própria de `consNSU`. A implementação não comprova, por si, desbloqueio real ou completude do histórico: confira os resultados privados da execução.
+
 **Auditoria posterior:** [gerenciamento e investigação 656](docs/GESTAO-CADASTROS-656-POSTGRES.md). Os dois acessos do piloto compartilham uma fila; não foi comprovada a causa da rejeição. Reforçados consumo por identidade/ciclo e preservação do retorno em falha de gravação, sem mudança manual de NSU.
 
 **Referência atual (22/10):** [revisão final e diagnóstico por serviço](docs/REVISAO-FINAL-E-PUBLICACAO.md). A NF-e permanece com rejeição 656 na última resposta conhecida; o “Ainda não executada” do segundo acesso foi corrigido apenas na apresentação. A investigação usou exclusivamente registros locais/documentação, sem consultas fiscais ou mudanças de cursor/intervalo.
@@ -40,7 +46,7 @@ O A1 e sua senha são abertos do armazenamento Fernet existente durante o uso. C
 - Resumos, XMLs completos, eventos e resumos de eventos ficam separados. Só XML completo modelo 55 com destinatário correspondente é importado como NF-e recebida.
 - Hash, NSU conhecido e chave da nota evitam duplicidades. XML com impedimento fica preservado, com causa visível e nova tentativa local, sem repetir a consulta para recuperar o mesmo conteúdo.
 - O worker pagina enquanto há documentos disponíveis. Após 137, 656 ou fim da fila aceita, aguarda pelo menos uma hora. Resultado desconhecido também provoca espera conservadora de uma hora.
-- Rejeições não fazem o cursor saltar para NSU informativo. A relação entre `ultNSU` e `maxNSU` de uma rejeição não é interpretada como avanço aceito.
+- Rejeições não são interpretadas como documentos recebidos. Uma resposta 656 íntegra pode orientar a retomada posterior, com registro separado do intervalo pendente e avanço apenas após armazenamento de resposta aceita. `maxNSU` de uma rejeição não é usado como cursor.
 
 O pipeline legado `run_distribution` permanece para testes internos com transporte injetado. O fluxo público real usa `capture.run_company` e coordenação global. Origem `test` nunca é apresentada como consulta real. A API REST não expõe execução de consultas nem manifestações.
 
@@ -56,7 +62,7 @@ Ciência registra conhecimento da emissão e pode permitir disponibilização po
 
 A distribuição mantém documentos por até 90 dias. Para novo usuário, a geração de NSU inicia no primeiro acesso; não há garantia de recuperação retroativa. Após mais de 60 dias sem uso, a geração retoma com novo acesso. Cancelamentos podem ser distribuídos sem manifestação. Eventos recebidos não mudam automaticamente parcelas, pagamentos ou situação fiscal.
 
-O limite de 20 consultas por hora da NT aplica-se a `consNSU` e `consChNFe`, não à paginação `distNSU` implementada aqui. Consultas pontuais ainda não estão disponíveis. Consumidores externos e instalações com bancos separados precisam coordenar NSU. Uma falha isolada não comprova a existência de outro consumidor.
+O limite de 20 consultas por hora da NT aplica-se a `consNSU` e `consChNFe`, não à paginação `distNSU` implementada aqui. `consNSU` agora é usado somente na fila durável de recuperação de intervalos, com margem local de 18 consultas por hora; não há consulta pontual livre na interface/API. Consumidores externos e instalações com bancos separados precisam coordenar NSU. Uma falha isolada não comprova a existência de outro consumidor.
 
 DDA, consulta bancária, conciliação e pagamentos continuam sem conector bancário. NFS-e e CT-e possuem transporte/importação próprios, separados deste conector NF-e. O uso local não substitui hospedagem, backup, monitoramento e validação de concorrência em PostgreSQL.
 

@@ -7,6 +7,8 @@ from . import fiscal_views
 from .pending_views import pending_documents
 from .analytics_views import indicators
 from .recovery_views import RecoveryView
+from .account_views import account_delete
+from . import document_search_views
 from django.contrib.auth import views as auth_views
 urlpatterns=[
     path('saude/',views.health,name='health'),
@@ -14,7 +16,8 @@ urlpatterns=[
     path('recuperar-senha/enviado/',auth_views.PasswordResetDoneView.as_view(template_name='portal/recovery.html'),name='password_reset_done'),
     path('recuperar-senha/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='portal/recovery.html'),name='password_reset_confirm'),
     path('recuperar-senha/concluido/',auth_views.PasswordResetCompleteView.as_view(template_name='portal/recovery.html'),name='password_reset_complete'),
-    path('documentos/',fiscal_views.documents,name='fiscal_documents'),
+    path('documentos/',document_search_views.documents,name='fiscal_documents'),
+    path('documentos/exportar.xlsx',document_search_views.export_xlsx,name='fiscal_export_xlsx'),
     path('nfse/',fiscal_views.nfse_list,name='nfse_list'),
     path('nfse/<int:pk>/',fiscal_views.document_detail,{'service':'nfse'},name='nfse_detail'),
     path('nfse/<int:pk>/xml/',fiscal_views.document_xml,{'service':'nfse'},name='nfse_xml'),
@@ -55,6 +58,7 @@ urlpatterns=[
     path('parcelas/<int:pk>/conferir/',views.installment_check,name='installment_check'),
     path('perfil/',views.profile,name='profile'),
     path('perfil/senha/',views.ChangePassword.as_view(),name='password_change'),
+    path('perfil/excluir/',account_delete,name='account_delete'),
     path('demonstracao/',views.demo,name='demo'),
     path('exemplo.xml',views.example_xml,name='example_xml'),
     path('exportar/',views.export_csv,name='export_csv'),

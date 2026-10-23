@@ -20,7 +20,7 @@ def capture_worker_lock():
 
     Complementa as reservas de banco por CNPJ. Não usa só o heartbeat como lock.
     """
-    target=Path(settings.BASE_DIR)/'tmp'/'capture-worker.lock'
+    target=Path(getattr(settings,'RUNTIME_DIR',None) or Path(settings.BASE_DIR)/'tmp')/'capture-worker.lock'
     target.parent.mkdir(parents=True,exist_ok=True)
     with target.open('a+b') as file:
         file.seek(0,os.SEEK_END)
@@ -44,7 +44,7 @@ def capture_worker_lock():
 
 
 def heartbeat_path():
-    return Path(settings.BASE_DIR) / 'tmp' / 'capture-heartbeat.json'
+    return Path(getattr(settings,'RUNTIME_DIR',None) or Path(settings.BASE_DIR)/'tmp') / 'capture-heartbeat.json'
 
 
 def write_heartbeat():

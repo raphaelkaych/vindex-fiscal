@@ -121,7 +121,8 @@ class InstallmentRevision(models.Model):
 from .boleto_models import Boleto, BoletoEvent
 from .api_models import ApiCredential, CredentialCompany
 from .sefaz_models import (SefazSyncState, SefazDocument, SefazCaptureConfig,
-    SefazDistributionStream, SefazStreamDocument, SefazConsultation)
+    SefazDistributionStream, SefazStreamDocument, SefazConsultation, SefazNsuRecovery, SefazKeyRecovery)
 from .sefaz_manifest_models import SefazScienceRequest
 from .management_models import MasterAudit
 from .fiscal_models import FiscalConnector,FiscalStream,FiscalConsultation,FiscalEnvelope,FiscalDocument,FiscalDelivery
+from .search_models import FiscalSearchRecord,FiscalSearchItem

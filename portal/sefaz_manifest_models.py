@@ -4,8 +4,8 @@ from django.db import models
 
 
 class SefazScienceRequest(models.Model):
-    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='science_requests')
-    document = models.ForeignKey('SefazDocument', on_delete=models.PROTECT, related_name='science_requests')
+    company = models.ForeignKey('Company', on_delete=models.SET_NULL, null=True, related_name='science_requests')
+    document = models.ForeignKey('SefazDocument', on_delete=models.SET_NULL, null=True, related_name='science_requests')
     environment = models.CharField(max_length=1)
     cnpj = models.CharField(max_length=14, default='')
     access_key = models.CharField(max_length=44)

@@ -13,6 +13,8 @@ from .views import workspace_for
 from .services.fiscal_transport import xml_read
 from .services.sefaz import SefazError
 from .services.operational import operational_companies
+from .models import FiscalSearchRecord
+from django.db.models import Count
 
 NFE='http://www.portalfiscal.inf.br/nfe'
 NAMES={'nfe':'NF-e de produtos','nfse':'NFS-e de serviços','cte':'CT-e de transporte'}
@@ -73,6 +75,11 @@ def indicators(request):
     while cursor<=end:
         months.append(cursor.strftime('%Y-%m'));cursor=date(cursor.year+int(cursor.month==12),cursor.month%12+1,1)
     panels=[]
+    duration=(end-start).days+1
+    previous_end=start-timedelta(days=1);previous_start=previous_end-timedelta(days=duration-1)
+    previous=FiscalSearchRecord.objects.filter(company__in=companies,issued_on__range=(previous_start,previous_end))
+    previous_counts={(r['kind'],r['environment']):r['count'] for r in previous.order_by().values('kind','environment').annotate(count=Count('access_key',distinct=True))}
+    comparison_ready=not (Invoice.objects.filter(company__in=companies,is_demo=False,search_record__isnull=True).exists() or FiscalDocument.objects.filter(company__in=companies,search_record__isnull=True).exists())
     for service,env in sorted({(g['service'],g['environment']) for g in groups.values()}):
         records=[g for g in groups.values() if g['service']==service and g['environment']==env]
         monthly={m:{'month':m,'count':0,'eligible':0,'value':Decimal(0)} for m in months}
@@ -83,14 +90,29 @@ def indicators(request):
         for i,row in enumerate(rows):
             row['height']=max(1,int(100*row['count']/maxcount))
             row['x']=str(round(Decimal(20)+Decimal(560)*i/max(1,len(rows)-1),2));row['y']=str(round(Decimal(140)-Decimal(120)*row['value']/maxvalue,2))
+            from urllib.parse import urlencode
+            month_start=date.fromisoformat(row['month']+'-01')
+            month_end=date(month_start.year+int(month_start.month==12),month_start.month%12+1,1)-timedelta(days=1)
+            params={'type':service,'environment':env if env in {'1','2'} else '',
+                'start':max(month_start,start).isoformat(),'end':min(month_end,end).isoformat()}
+            if request.GET.get('company'):params['company']=request.GET['company']
+            row['query']=urlencode(params)
         panels.append({'name':NAMES[service],'environment':'Produção' if env=='1' else 'Homologação' if env=='2' else 'Não identificado','rows':rows,
             'count':len(records),'partial':sum(g['partial'] for g in records),'cancelled':sum(g['cancelled'] for g in records),'substituted':sum(g['substituted'] for g in records),
             'issued':sum('issued' in g['roles'] for g in records),'received':sum('received' in g['roles'] for g in records),
             'value':sum((r['value'] for r in rows),Decimal(0)),'points':' '.join(r['x']+','+r['y'] for r in rows),
-            'share':int(100*len(records)/max(1,len(groups)))})
+            'share':int(100*len(records)/max(1,len(groups))),
+            'previous_count':previous_counts.get((service,env),0),
+            'count_change':len(records)-previous_counts.get((service,env),0),
+            'chart_id':service+'-'+env.replace('?','unknown')})
     deliveries=FiscalDelivery.objects.filter(connector__company__in=companies,envelope__received_at__date__range=(start,end))
     if kind!='all':deliveries=deliveries.filter(connector__service=kind)
     if environment!='all':deliveries=deliveries.filter(connector__environment=environment)
+    colors=['#0756FF','#00A5A8','#8756DA','#D27B19','#B24E82','#618343'];offset=0;segments=[]
+    for i,panel in enumerate(panels):
+        panel['color']=colors[i%len(colors)];stop=offset+100*panel['count']/max(1,len(groups))
+        segments.append(f"{panel['color']} {offset:.4f}% {stop:.4f}%");offset=stop
     return render(request,'portal/indicators.html',{'panels':panels,'companies':operational_companies(workspace),'from_date':start.isoformat(),'to_date':end.isoformat(),
+        'comparison_ready':comparison_ready,'previous_start':previous_start,'previous_end':previous_end,'ring_gradient':', '.join(segments) or 'var(--line) 0% 100%',
         'record_count':len(groups),'captured_count':sum(g['captured'] for g in groups.values()),'partial_count':sum(g['partial'] for g in groups.values()),
         'pending_count':deliveries.exclude(error='').count(),'official_pdf_count':sum(g['pdf'] for g in groups.values()),'unknown_environment':unknown_environment})
